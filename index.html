@@ -185,6 +185,15 @@ main{padding:12px;max-width:1280px;margin:0 auto 120px}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:60;background:#1d2436;border:1px solid var(--ln);border-radius:14px;padding:10px 16px;font-weight:800;box-shadow:0 10px 30px #0009;display:none;max-width:90vw;text-align:center}
 #toast.on{display:block}
 .ok{color:var(--up)}.err{color:var(--dn)}
+.rrow{display:grid;grid-template-columns:44px 118px 1fr auto;grid-template-areas:'i c t x' 'i v v v' 'b b b b';gap:6px 8px;align-items:center;padding:8px;border:1px solid var(--ln);border-radius:14px;background:var(--p0);margin-bottom:6px}
+.rrow.mod{border-color:#a8641c}
+.rrow img{grid-area:i;width:44px;height:44px;object-fit:contain;border-radius:10px}
+.rrow .rc{grid-area:c;display:flex;align-items:center;gap:4px}.rrow .rc input{width:76px}
+.rrow .ty{grid-area:t}.rrow .rm{grid-area:x}
+.rrow .rv{grid-area:v;display:flex}.rrow .rv input,.rrow .rv select{flex:1;min-width:0;text-align:left}
+.rrow .rb{grid-area:b;font-size:11.5px;display:flex;gap:6px;flex-wrap:wrap}.rrow .rb:empty{display:none}
+.rrow .rb span{padding:0 6px;border-radius:6px}.rrow .bp{background:#3a2610;color:#ffcf8f}.rrow .bo{background:#18264a;color:#b8cbff}
+@media(min-width:700px){.rrow{grid-template-columns:44px 118px 130px 1fr auto;grid-template-areas:'i c t v x' 'b b b b b'}}
 .road{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
 .rs{background:var(--p0);border:1px solid var(--ln);border-radius:14px;padding:8px;text-align:center}
 .rs img{width:54px;height:54px;object-fit:contain;border-radius:10px}
@@ -291,7 +300,7 @@ function def(P){const{s,id,k}=P;
   if(s==='passives'){const b=PASS[id];if(!b)return undefined;return b.st?b.st[k.slice(3)]:undefined}
   if(s==='units'||s==='eco')return DF[s][id];
   if(s==='spells'){if(id.endsWith('.cd'))return SP[id.split('.')[0]].cd;return DF.spells[id]}
-  if(s==='rewards'){if(id==='hero.price')return RW.hero_price;if(id==='road.skin_gems')return RW.road_skin_gems;if(id in DF.rewards)return DF.rewards[id];
+  if(s==='rewards'){if(id==='road')return RW.road;if(id==='hero.price')return RW.hero_price;if(id==='road.skin_gems')return RW.road_skin_gems;if(id in DF.rewards)return DF.rewards[id];
     const a=id.split('.');
     if(a[0]==='camp')return CAMP[a[1]]?CAMP[a[1]][a[2]]:undefined;
     if(a[0]==='chest')return CHEST[a[1]]?CHEST[a[1]][a[2]]:undefined;
@@ -299,7 +308,7 @@ function def(P){const{s,id,k}=P;
     if(a[0]==='miss'){const m=MISS[a[1]];return m?m.rw[a[2]==='c'?0:1]:undefined}
     if(a[0]==='ach'){const x=ACH[a[1]];return x&&x.rw[+a[2]]?x.rw[+a[2]][a[3]==='c'?0:1]:undefined}}
   return undefined}
-function valIn(d,P){const r=raw(d,P);return r.h?r.v:def(P)}
+function valIn(d,P){if(P.s==='rewards'&&P.id==='road')return roadEff(d);const r=raw(d,P);return r.h?r.v:def(P)}
 const get=P=>valIn(cur,P),pubv=P=>valIn(pub,P);
 const pkey=P=>P.s+'|'+P.id+'|'+(P.k||'');
 
@@ -330,7 +339,7 @@ function show(F,v){if(v===null)return 'tolto';if(v===undefined)return 'nessuno';
   switch(F.kind){case 'pct':return nf(v*100,1)+'%';case 'aps':return nf(1/v,2)+' attacchi/s';
     case 'pair':return Array.isArray(v)?nf(v[0],1)+' + '+nf(v[1]*100,0)+'% potenza':nf(v);
     case 'arr':return Array.isArray(v)?F.parts.map((p,i)=>p.l+' '+(p.k==='pct'?nf(v[i]*100,0)+'%':nf(v[i])+(p.u||''))).join(', '):String(v);
-    case 'bool':return v?'sì':'no';case 'rc':return nfi(recvC(v))+' monete';case 'rg':return nfi(recvG(v))+' diamanti';
+    case 'bool':return v?'sì':'no';case 'road':return Array.isArray(v)?v.length+' tappe':'';case 'rc':return nfi(recvC(v))+' monete';case 'rg':return nfi(recvG(v))+' diamanti';
     case 'mc':return F.goals.map(g=>nfi(Math.max(10,Math.round(v*g*ECO/10)*10))).join(' / ')+' monete';
     case 'mg':return F.goals.map(g=>nfi(Math.floor(v*g*ECO+1e-9))).join(' / ')+' diamanti';
     default:return nf(v,2)+(F.u?' '+F.u:'')}}
@@ -485,7 +494,7 @@ function rewardFields(){const out=[];
   for(const c of RW.chests){const tt='Forziere '+CHEST[c.id].n+(c.big?' (finale)':'');
     if(c.coins||c.big)out.push(rwF('chest.'+c.id+'.coins',{l:'Premio',kind:'rc',title:tt,icon:'chest',ent:'chest',cid:c.id}));
     if(c.gems||c.big)out.push(rwF('chest.'+c.id+'.gems',{l:'Premio',kind:'rg',title:tt,icon:'chest',ent:'chest',cid:c.id}))}
-  RW.road.forEach((r,i)=>{if(r[1]==='coins'||r[1]==='gems')out.push(rwF('road.'+i+'.val',{l:r[0]+' coppe',kind:'num',u:r[1]==='coins'?'monete':'diamanti',title:'Cammino delle coppe: '+r[0]+' coppe',icon:'trophy',ent:'road',help:'Premio della tappa, preso così com\'è (niente ×0,35).'}))});
+  out.push(rwF('road',{l:'Cammino delle coppe',kind:'road',virt:true,neutral:true,title:'Cammino delle coppe',icon:'trophy',ent:'road'}));
   for(const m of [...RW.daily,...RW.weekly]){const tt=(m.pool==='weekly'||MISS[m.id].pool==='weekly'?'Settimanale: ':'Giornaliera: ')+m.t.replace('%d','N').replace('%s','eroe');
     out.push(rwF('miss.'+m.id+'.c',{l:'Premio',lab2:'Monete per unità',kind:'mc',goals:m.goal,title:tt,icon:'missions',ent:'miss',mid:m.id}));
     out.push(rwF('miss.'+m.id+'.g',{l:'Premio',lab2:'Diamanti per unità',kind:'mg',goals:m.goal,title:tt,icon:'missions',ent:'miss',mid:m.id}))}
@@ -498,16 +507,16 @@ function allFields(){const out=[];for(const h in H){out.push(...heroFields(h),..
   for(const id in R){out.push(...runeFields(id),...runePriceFields(id))}
   for(const u of UNITS)out.push(...unitFields(u[0]));for(const sp in SP)out.push(...spellFields(sp));out.push(...ecoFields(),...rewardFields());
   // chiavi di patch vecchie che il tool non conosce: restano e si vedono
-  const known=new Set(out.map(f=>pkey(f.P)));
+  const known=new Set(out.map(f=>pkey(f.P)));RW.road.forEach((r,i)=>known.add('rewards|road.'+i+'.val|'));
   for(const d of [pub,cur])for(const s in d){if(!d[s]||typeof d[s]!=='object')continue;for(const id in d[s]){if(NEST.has(s)){if(d[s][id]&&typeof d[s][id]==='object')for(const k in d[s][id]){const P={s,id,k};if(!known.has(pkey(P))){known.add(pkey(P));out.push(FD(P,{l:k,kind:'num',title:s+' '+id,icon:'note',tab:'home',ent:''}))}}}else{const P={s,id};if(!known.has(pkey(P))){known.add(pkey(P));out.push(FD(P,{l:id,kind:'num',title:s,icon:'note',tab:'home',ent:'',unknown:true}))}}}}
   return out}
 
 // ============================================================ differenze e note
-function diffs(ref){ref=ref||pub;const out=[];for(const F of allFields()){const a=raw(ref,F.P),b=raw(cur,F.P);if(a.h===b.h&&(!a.h||same(a.v,b.v)))continue;const av=valIn(ref,F.P),bv=valIn(cur,F.P);if(same(av,bv)&&!(a.h!==b.h&&F.unknown))continue;out.push({F,a:av,b:bv})}return out}
+function diffs(ref){ref=ref||pub;const out=[];for(const F of allFields()){if(F.virt){const av=valIn(ref,F.P),bv=valIn(cur,F.P);if(!same(av,bv))out.push({F,a:av,b:bv});continue}const a=raw(ref,F.P),b=raw(cur,F.P);if(a.h===b.h&&(!a.h||same(a.v,b.v)))continue;const av=valIn(ref,F.P),bv=valIn(cur,F.P);if(same(av,bv)&&!(a.h!==b.h&&F.unknown))continue;out.push({F,a:av,b:bv})}return out}
 function dirOf(d){const F=d.F;if(F.neutral)return '';let a=d.a,b=d.b;
   if(b===null||b===undefined)return F.inv?'up':'down';if(a===null||a===undefined)return F.inv?'down':'up';
   if(F.kind==='aps'){a=1/a;b=1/b}const x=numOf(a),y=numOf(b);if(x===y)return '';return (y>x)!==!!F.inv?'up':'down'}
-function noteText(d){const F=d.F;return F.l+': '+show(F,d.a)+' → '+show(F,d.b)}
+function noteText(d){const F=d.F;if(F.kind==='road')return roadNote(d.a,d.b);return F.l+': '+show(F,d.a)+' → '+show(F,d.b)}
 function autoNotes(){const m=new Map();for(const d of diffs()){if(d.F.unknown)continue;const dir=dirOf(d);const key=d.F.icon+'|'+d.F.title+'|'+dir;if(!m.has(key))m.set(key,{icon:d.F.icon,title:d.F.title,lines:[],dir,keys:[]});const n=m.get(key);n.lines.push(noteText(d));n.keys.push(pkey(d.F.P))}
   return [...m.values()].map(n=>({icon:n.icon,title:n.title,text:n.lines.join('\n'),dir:n.dir,id:n.keys.join(',')}))}
 let FREE=[],HIDE=new Set();
@@ -556,6 +565,53 @@ function addSel(opts,onAdd,ph){const w=el('<div class="add"><select></select><bu
   for(const[k,l]of opts)s.appendChild(el('<option value="'+esc(k)+'">'+esc(l)+'</option>'));w.querySelector('button').onclick=()=>{if(s.value)onAdd(s.value)};if(!opts.length)w.style.display='none';return w}
 function card(img,t,s,ent){const c=el('<div class="card"><div class="ch"><img alt=""><div><div class="t"></div><div class="s"></div></div></div></div>');c.querySelector('img').src=img;c.querySelector('.t').innerHTML=t;c.querySelector('.s').innerHTML=s||'';if(ent)c.dataset.ent=ent;return c}
 function sec(t){return el('<div class="sec">'+esc(t)+'</div>')}
+
+// ============================================================ cammino delle coppe (lista intera, serve app 143+)
+const ROADV=143;
+function roadEff(d){const r=(d&&d.rewards)||{};if(Array.isArray(r.road)&&r.road.length)return clone(r.road).sort((a,b)=>a[0]-b[0]);const out=clone(RW.road);out.forEach((x,i)=>{const k='road.'+i+'.val';if(has(r,k)&&(x[1]==='coins'||x[1]==='gems'))x[2]=r[k]});return out}
+const SKINS=[];for(const h in H)for(const s of H[h].skins)if(s.i>0)SKINS.push([h,s.i,s.name]);
+const skinName=(h,i)=>((H[h]||{}).skins||[])[i]?H[h].skins[i].name:h+' '+i;
+function stepDesc(x){if(!x)return '';if(x[1]==='coins')return '+'+nfi(x[2])+' monete';if(x[1]==='gems')return '+'+nfi(x[2])+' diamanti';if(x[1]==='skin')return 'skin '+skinName(x[2][0],x[2][1]);if(x[1]==='hero')return 'un eroe nuovo';return String(x[1])+' '+String(x[2])}
+function roadNote(a,b){a=a||[];b=b||[];const L=[];const am=new Map(a.map(x=>[x[0],x])),bm=new Map(b.map(x=>[x[0],x]));
+  for(const x of b){const o=am.get(x[0]);if(!o)L.push(nfi(x[0])+' coppe: '+stepDesc(x)+' (nuova tappa)');else if(!same(o,x))L.push(nfi(x[0])+' coppe: '+stepDesc(o)+' → '+stepDesc(x))}
+  for(const x of a)if(!bm.has(x[0]))L.push(nfi(x[0])+' coppe: tolto ('+stepDesc(x)+')');return L.join('\n')}
+// scrive la lista intera; per chi ha ancora l'app vecchia aggiorna anche i premi in monete/diamanti rimasti alla stessa soglia
+function roadWrite(steps,key){snap(key||'road');cur.rewards=cur.rewards||{};const r=cur.rewards;for(const k of Object.keys(r))if(/^road\.\d+\.val$/.test(k))delete r[k];
+  steps=clone(steps).sort((x,y)=>x[0]-y[0]);
+  if(same(steps,RW.road)){delete r.road;return changed(true)}
+  RW.road.forEach((o,i)=>{if(o[1]!=='coins'&&o[1]!=='gems')return;const n=steps.find(x=>x[0]===o[0]&&x[1]===o[1]);if(n&&n[2]!==o[2])r['road.'+i+'.val']=n[2]});
+  const onlyVals=steps.length===RW.road.length&&steps.every((x,i)=>x[0]===RW.road[i][0]&&x[1]===RW.road[i][1]&&(x[1]==='coins'||x[1]==='gems'||same(x[2],RW.road[i][2])));
+  if(onlyVals)delete r.road;else r.road=steps;changed(true)}
+function roadCopy(from){snap('');cur.rewards=cur.rewards||{};const r=cur.rewards,f=(from&&from.rewards)||{};for(const k of Object.keys(r))if(k==='road'||/^road\.\d+\.val$/.test(k))delete r[k];for(const k of Object.keys(f))if(k==='road'||/^road\.\d+\.val$/.test(k))r[k]=clone(f[k]);changed(true)}
+function roadEditor(){const w=el('<div></div>');const steps=valIn(cur,{s:'rewards',id:'road'}),ps=roadEff(pub);const pm=new Map(ps.map(x=>[x[0],x])),om=new Map(RW.road.map(x=>[x[0],x]));
+  const needNew=!!(cur.rewards&&Array.isArray(cur.rewards.road));
+  w.appendChild(el('<div class="'+(needNew?'warn':'info')+'">'+(needNew?'<b>Questa modifica la vedono solo i giocatori con l\'app '+ROADV+' o più.</b> Chi ha la 142 o meno continua a vedere il Cammino originale (cambiano solo i premi in monete e diamanti rimasti alla stessa soglia). ':'')+'Le tappe già riscattate restano riscattate: se sposti una skin su una soglia nuova, chi l\'aveva già presa riceve '+nfi(get({s:'rewards',id:'road.skin_gems'}))+' diamanti al suo posto, chi non l\'aveva la prende alla soglia nuova.</div>'));
+  const list=el('<div></div>');w.appendChild(list);
+  steps.forEach((x,i)=>{const row=el('<div class="rrow"><img alt=""><div class="rc"><input type="number" class="tr"><span class="u">coppe</span></div><select class="ty"><option value="coins">Monete</option><option value="gems">Diamanti</option><option value="skin">Skin</option><option value="hero">Eroe nuovo</option></select><div class="rv"></div><button class="sm gh rm" title="Togli tappa">✕</button><div class="rb"></div></div>');
+    const p0=pm.get(x[0]),o0=om.get(x[0]);const mod=!same(p0,x),org=!same(o0,x);if(mod)row.classList.add('mod');
+    const img=row.querySelector('img');img.src=x[1]==='coins'?IMG('ui:coin'):x[1]==='gems'?IMG('ui:gem'):x[1]==='skin'?(G.img['hero:'+x[2][0]+':'+x[2][1]]||IMG('hero:'+x[2][0]+':0')):IMG('ui:heroes');
+    const tr=row.querySelector('.tr');tr.value=x[0];tr.onchange=()=>{const v=Math.max(0,Math.round(+tr.value||0));if(steps.some((y,j)=>j!==i&&y[0]===v)){toast('C\'è già una tappa a '+v+' coppe');tr.value=x[0];return}const st=clone(steps);st[i][0]=v;roadWrite(st)};
+    const ty=row.querySelector('.ty');if(x[1]==='avatar')ty.appendChild(el('<option value="avatar">Emblema</option>'));ty.value=x[1];
+    ty.onchange=()=>{const st=clone(steps);const t=ty.value;st[i]=[x[0],t,t==='coins'?500:t==='gems'?50:t==='skin'?[SKINS[0][0],SKINS[0][1]]:t==='hero'?1:x[2]];roadWrite(st)};
+    const rv=row.querySelector('.rv');
+    if(x[1]==='coins'||x[1]==='gems'){const i2=document.createElement('input');i2.type='number';i2.inputMode='numeric';i2.value=x[2];i2.onchange=()=>{if(i2.value==='')return;const st=clone(steps);st[i][2]=Math.max(0,Math.round(+i2.value));roadWrite(st,'road'+i)};rv.appendChild(i2)}
+    else if(x[1]==='skin'){const se=document.createElement('select');for(const[h,si,nm]of SKINS){const o=el('<option></option>');o.value=h+':'+si;o.textContent=nm+' ('+H[h].name+')';se.appendChild(o)}se.value=x[2][0]+':'+x[2][1];se.onchange=()=>{const a=se.value.split(':');const st=clone(steps);st[i][2]=[a[0],+a[1]];roadWrite(st)};rv.appendChild(se)}
+    else if(x[1]==='hero')rv.appendChild(el('<span class="pv">Il primo eroe che non ha (se li ha tutti: 300 diamanti)</span>'));
+    else rv.appendChild(el('<span class="pv">'+esc(String(x[2]))+'</span>'));
+    row.querySelector('.rm').onclick=()=>{const st=clone(steps);st.splice(i,1);roadWrite(st)};
+    const rb=row.querySelector('.rb');rb.innerHTML=(mod?'<span class="bp">online: '+esc(p0?stepDesc(p0):'nessuna tappa')+'</span>':'')+(org?'<span class="bo">originale: '+esc(o0?stepDesc(o0):'nessuna tappa')+'</span>':'');
+    list.appendChild(row)});
+  // avvisi
+  const W=[];const seen={};for(const x of steps)if(x[1]==='skin'){const k=x[2].join(':');if(seen[k])W.push('La skin '+skinName(x[2][0],x[2][1])+' è in due tappe: la seconda dà diamanti.');seen[k]=1}
+  for(const h in H)for(const s of H[h].skins)if(s.road&&!seen[h+':'+s.i]){const pr=get({s:'heroes',id:h,k:'skin'+s.i+'.gems'})||get({s:'heroes',id:h,k:'skin'+s.i+'.price'});W.push('La skin '+s.name+' non è più nel Cammino: '+(pr?'torna in vendita nel negozio al prezzo impostato.':'senza prezzo non si potrà più ottenere.'))}
+  for(const x of steps)if(x[1]==='skin'){const sk=(H[x[2][0]]||{}).skins?H[x[2][0]].skins[x[2][1]]:null;if(sk&&!sk.road)W.push('La skin '+sk.name+' era in vendita: nel Cammino esce dal negozio.')}
+  for(const w2 of W)w.appendChild(el('<div class="warn">'+esc(w2)+'</div>'));
+  const bar=el('<div class="mrow" style="justify-content:space-between"><button class="sm cy ad">+ Aggiungi tappa</button><div style="display:flex;gap:6px"><button class="sm bp0">↺ Come online</button><button class="sm bo0">⟲ Originale</button></div></div>');
+  bar.querySelector('.ad').onclick=()=>{const st=clone(steps);const last=st.length?st[st.length-1][0]:0;st.push([last+300,'coins',500]);roadWrite(st);toast('Tappa aggiunta a '+(last+300)+' coppe')};
+  bar.querySelector('.bp0').onclick=()=>roadCopy(pub);bar.querySelector('.bo0').onclick=()=>roadCopy({});w.appendChild(bar);
+  // gemme al posto della skin già posseduta
+  w.appendChild(field(rewardFields().find(F=>F.P.id==='road.skin_gems')));
+  return w}
 
 // ============================================================ viste
 const TABS=[['home','Panoramica','ui:logo'],['heroes','Eroi','ui:heroes'],['skills','Abilità','ui:play'],['runes','Rune','rune:arcano'],['spells','Incantesimi','spell:flash'],['units','Mappa e mostri','unit:cat'],['eco','Economia','ui:coin'],['rewards','Premi e prezzi','ui:gem'],['seasons','Stagioni','rank:7'],['version','Versione app','ui:shop'],['hist','Storico','ui:missions']];
@@ -682,11 +738,7 @@ function vRewards(v){const inp=searchBar(v,'Cerca premio (es. Angera, forziere, 
       const c=card(IMG('ui:campaign'),'Campagna: '+esc(CH[ch]),'Premio della prima vittoria. Ogni stella nuova dà anche +10 monete.','camp');
       for(const cc of cs){c.appendChild(el('<div class="sec" style="color:var(--tx);text-transform:none;font-size:14px;letter-spacing:0">'+CAMP[cc.id].n+'. '+esc(cc.title)+'</div>'));for(const F of all.filter(F=>F.cid===cc.id&&F.ent==='camp'))c.appendChild(field(F,{label:RL(F)}))}g.appendChild(c)}
     if(match('forziere forzieri chest campagna')){const c=card(IMG('ui:chest'),'Forzieri della campagna','Si aprono dopo il livello indicato.','chest');for(const ck of RW.chests){const fs=all.filter(F=>F.cid===ck.id&&F.ent==='chest');if(!fs.length)continue;const after=CAMP[ck.after];c.appendChild(el('<div class="sec" style="color:var(--tx);text-transform:none;font-size:14px;letter-spacing:0">Forziere '+CHEST[ck.id].n+(ck.big?' (finale)':'')+' · dopo il liv. '+(after?after.n+' '+esc(after.title):ck.after)+'</div>'));for(const F of fs)c.appendChild(field(F,{label:RL(F)}))}g.appendChild(c)}
-    if(match('cammino coppe road trofei')){const c=card(IMG('ui:trophy'),'Cammino delle coppe','Premi a soglia di coppe online (si prendono una volta sola).','road');c.style.gridColumn='1/-1';const rd=el('<div class="road"></div>');
-      RW.road.forEach((r,i)=>{const it=el('<div class="rs"><img alt=""><div class="tr"></div><div class="x"></div></div>');it.querySelector('.tr').textContent=nfi(r[0])+' coppe';
-        if(r[1]==='coins'||r[1]==='gems'){it.querySelector('img').src=IMG(r[1]==='coins'?'ui:coin':'ui:gem');const F=all.find(F=>F.P.id==='road.'+i+'.val');const f=field(F,{label:r[1]==='coins'?'Monete':'Diamanti'});it.querySelector('.x').appendChild(f)}
-        else if(r[1]==='skin'){const sk=r[2];it.querySelector('img').src=G.img['hero:'+sk[0]+':'+sk[1]]||IMG('hero:'+sk[0]+':0');it.querySelector('.x').innerHTML='<b style="font-size:13px">Skin '+esc((H[sk[0]].skins[sk[1]]||{}).name||'')+'</b><div style="color:var(--dim);font-size:12px">Se c\'è già: diamanti al suo posto</div>'}
-        else{it.querySelector('img').src=IMG('ui:heroes');it.querySelector('.x').innerHTML='<b style="font-size:13px">'+esc(r[1])+'</b>'}rd.appendChild(it)});c.appendChild(rd);g.appendChild(c)}
+    if(match('cammino coppe road trofei skin')){const c=card(IMG('ui:trophy'),'Cammino delle coppe','Premi a soglia di coppe migliori (si prendono una volta sola). Scegli per ogni tappa: monete, diamanti, una skin o un eroe.','road');c.style.gridColumn='1/-1';c.appendChild(roadEditor());g.appendChild(c)}
     for(const[pool,nm]of [['daily','Missioni giornaliere'],['weekly','Missioni settimanali']]){const ms=RW[pool].filter(m=>match(nm+' '+m.t));if(!ms.length)continue;const c=card(IMG('ui:missions'),nm,'Ogni missione ha 3 livelli di difficoltà (obiettivi diversi). Premio = per unità × obiettivo × 0,35.','miss');
       for(const m of ms){c.appendChild(el('<div class="sec" style="color:var(--tx);text-transform:none;font-size:14px;letter-spacing:0">'+esc(m.t.replace('%d',m.goal.map(nfi).join(' / ')).replace('%s','eroe'))+'</div>'));for(const F of all.filter(F=>F.mid===m.id))c.appendChild(field(F,{label:F.lab2,help:'Premio per ogni unità dell\'obiettivo (per ogni uccisione, ogni danno, ogni partita…). Minimo 10 monete. Esempio: 30 per uccisione con obiettivo 5 = 30 × 5 × 0,35 = 50 monete.'}))}g.appendChild(c)}
     for(const a of RW.ach){if(!match('traguardo '+a.t))continue;const c=card(IMG('ui:missions'),'Traguardo',esc(a.t.replace('%d','N')),'ach');a.lv.forEach((lv,li)=>{c.appendChild(el('<div class="sec" style="color:var(--tx);text-transform:none;font-size:14px;letter-spacing:0">Livello '+(li+1)+': '+esc(a.t.replace('%d',nfi(lv)))+'</div>'));for(const F of all.filter(F=>F.aid===a.id&&F.li===li))c.appendChild(field(F,{label:RL(F)}))});g.appendChild(c)}
@@ -750,9 +802,9 @@ $('#prev').onclick=notesEditor;$('#dprev').onclick=()=>{closeDrawer();notesEdito
 function openDrawer(){const l=$('#dlist');l.innerHTML='';const ds=diffs();
   if(!ds.length)l.appendChild(el('<div class="empty">Nessuna modifica rispetto alla patch online.</div>'));
   for(const d of ds){const dir=dirOf(d);const it=el('<div class="ci"><img alt=""><div class="x"><b></b><div></div><small></small></div><button class="sm" title="Torna al valore online">↺</button><button class="sm cy">Vai</button></div>');
-    it.querySelector('img').src=noteImg(d.F.icon);it.querySelector('b').textContent=d.F.title;it.querySelector('.x div').innerHTML=esc(d.F.l)+': '+esc(show(d.F,d.a))+' → <span class="ar '+dir+'">'+esc(show(d.F,d.b))+'</span>';
-    const o=def(d.F.P);it.querySelector('small').textContent=same(d.b,o)?'Torna come il gioco originale':'Originale: '+show(d.F,o);
-    const bs=it.querySelectorAll('button');bs[0].onclick=()=>{setRaw(d.F.P,raw(pub,d.F.P));openDrawer()};bs[1].onclick=()=>{closeDrawer();tab=d.F.tab;q='';if(d.F.tab==='heroes')selHero=d.F.ent;if(d.F.tab==='skills'){skHero='';q=S[d.F.ent]?S[d.F.ent].name:''}if(d.F.tab==='runes')q=R[d.F.ent]?R[d.F.ent].name:'';render();window.scrollTo(0,0)};l.appendChild(it)}
+    it.querySelector('img').src=noteImg(d.F.icon);it.querySelector('b').textContent=d.F.title;it.querySelector('.x div').innerHTML=d.F.kind==='road'?esc(roadNote(d.a,d.b)).replace(/\n/g,'<br>'):esc(d.F.l)+': '+esc(show(d.F,d.a))+' → <span class="ar '+dir+'">'+esc(show(d.F,d.b))+'</span>';
+    const o=def(d.F.P);it.querySelector('small').textContent=d.F.kind==='road'?(same(d.b,o)?'Torna come il gioco originale':'Serve l\'app 143 o più'):same(d.b,o)?'Torna come il gioco originale':'Originale: '+show(d.F,o);
+    const bs=it.querySelectorAll('button');bs[0].onclick=()=>{if(d.F.virt)roadCopy(pub);else setRaw(d.F.P,raw(pub,d.F.P));openDrawer()};bs[1].onclick=()=>{closeDrawer();tab=d.F.tab;q='';if(d.F.tab==='heroes')selHero=d.F.ent;if(d.F.tab==='skills'){skHero='';q=S[d.F.ent]?S[d.F.ent].name:''}if(d.F.tab==='runes')q=R[d.F.ent]?R[d.F.ent].name:'';render();window.scrollTo(0,0)};l.appendChild(it)}
   const n=allFields().filter(F=>{const r=raw(cur,F.P);return r.h}).length;l.appendChild(el('<div class="info" style="margin-top:10px">La patch completa cambia '+n+' valori rispetto al gioco originale (compresi quelli già online).</div>'));
   $('#drawer').classList.add('on')}
 function closeDrawer(){$('#drawer').classList.remove('on')}

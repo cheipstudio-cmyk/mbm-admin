@@ -55,6 +55,7 @@ nav button img{width:24px;height:24px;object-fit:contain}
 nav button.on{background:var(--gold);color:#1a1205;border-color:#ffe08a}
 nav button .d{width:8px;height:8px;border-radius:9px;background:var(--mod);display:none}
 nav button.m .d{display:inline-block}
+.ng{flex:none;align-self:center;color:var(--dim2);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;padding:0 2px 0 10px;border-left:1px solid var(--ln);margin-left:4px}
 main{padding:12px;max-width:1280px;margin:0 auto 120px}
 .tools{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
 .tools input{flex:1;min-width:160px}
@@ -200,6 +201,9 @@ main{padding:12px;max-width:1280px;margin:0 auto 120px}
 .rs .tr{font-weight:800;color:var(--gold)}
 .rs .f{border:none;padding:4px 0 0}
 .hist .card{margin-bottom:10px}
+.pl .av{width:46px;height:46px;border-radius:14px;background:var(--p3);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex:none}
+.pst{display:flex;flex-wrap:wrap;gap:6px 12px;font-weight:700;font-size:13.5px}.pst span{display:flex;align-items:center;gap:4px}.pst img{width:20px;height:20px;object-fit:contain}.pst .dim,.dim{color:var(--dim)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:10px;background:var(--up);vertical-align:2px}
 .empty{color:var(--dim);text-align:center;padding:30px}
 .foot{position:fixed;bottom:0;left:0;right:0;z-index:15;background:#0b0e16f2;border-top:1px solid var(--ln);padding:8px 12px calc(8px + env(safe-area-inset-bottom));display:flex;gap:8px;align-items:center;justify-content:center}
 .foot input{flex:1;max-width:420px}
@@ -261,6 +265,7 @@ const clone=o=>o===undefined?undefined:JSON.parse(JSON.stringify(o));
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const has=(o,k)=>o!=null&&Object.prototype.hasOwnProperty.call(o,k);
 const ECO=0.35;
+G0:{GAME.img['ui:asc']='img/ui/asc.webp';GAME.img['ui:asc_btn']='img/ui/asc_btn.webp';GAME.img['ui:gift']=GAME.img['ui:gift']||'img/ui/gift.svg'}
 const G=GAME,H=G.heroes,S=G.skills,R=G.runes,SP=G.spells,RW=G.rewards,DF=G.def;
 // numeri all'italiana: virgola, niente zeri inutili
 function nf(v,d=2){if(v===null||v===undefined||isNaN(v))return '-';const m=Math.pow(10,d);let x=Math.round(v*m)/m;if(Object.is(x,-0))x=0;return String(x).replace('.',',')}
@@ -272,15 +277,16 @@ const UIMG={minion:'minion',pablo:'cat',fauno:'fauno',sbirro:'buff',gnome:'mouse
 function noteImg(k){k=String(k||'');const a=k.split(':');
   if(a[0]==='hero'||a[0]==='passive')return IMG('hero:'+a[1]+':0');
   if(a[0]==='skin')return G.img['hero:'+a[1]+':'+(a[2]||0)]||IMG('hero:'+a[1]+':0');
-  if(a[0]==='skill'||a[0]==='spell'||a[0]==='rune')return IMG(k);
+  if(a[0]==='skill'||a[0]==='spell'||a[0]==='rune'||a[0]==='item')return IMG(k);
   if(a[0]==='unit')return IMG('unit:'+(UIMG[a[1]]||a[1]));
+  if(k==='asc')return IMG('ui:asc');
   if(k==='note'||k==='logo')return IMG('ui:logo');
   return G.img['ui:'+k]||IMG('unit:minion')}
 
 // ============================================================ stato
 let PW='',WHO='',state=null,pub=null,cur=null,base=null,loadedPid=0,tab='home',selHero=null,skHero='',q='';
-const SECS=['heroes','skills','runes','passives','units','spells','eco','rewards'];
-const NEST=new Set(['heroes','skills','runes','passives']);
+const SECS=['heroes','skills','runes','passives','units','spells','eco','rewards','items'];
+const NEST=new Set(['heroes','skills','runes','passives','items']);
 function norm(d){const o={};for(const s of SECS)o[s]={};if(d&&typeof d==='object')for(const k in d)o[k]=clone(d[k])||{};return o}
 // P = {s,id,k}: s sezione, id eroe/abilità/runa/passiva (o chiave piatta), k campo (solo sezioni annidate)
 function raw(d,P){const s=d[P.s]||{};if(NEST.has(P.s)){const o=s[P.id];return has(o,P.k)?{h:1,v:o[P.k]}:{h:0}}return has(s,P.id)?{h:1,v:s[P.id]}:{h:0}}
@@ -288,22 +294,24 @@ function rawSet(d,P,v,del){d[P.s]=d[P.s]||{};const s=d[P.s];
   if(NEST.has(P.s)){if(del){if(s[P.id]){delete s[P.id][P.k];if(!Object.keys(s[P.id]).length)delete s[P.id]}}else{s[P.id]=s[P.id]||{};s[P.id][P.k]=v}}
   else{if(del)delete s[P.id];else s[P.id]=v}}
 // valore del codice del gioco (senza patch)
+const IT={};(G.items||[]).forEach(it=>IT[it.id]=it);const ITC=G.item_cats||['Attacco','Difesa','Utilità','Speciali'];
 const PASS={};for(const h in H)for(const p of H[h].passives)PASS[p.id]=Object.assign({hero:h},p);
 const MISS={};for(const m of RW.daily)MISS[m.id]=Object.assign({pool:'daily'},m);for(const m of RW.weekly)MISS[m.id]=Object.assign({pool:'weekly'},m);
 const CAMP={};RW.camp.forEach((c,i)=>CAMP[c.id]=Object.assign({n:i+1},c));
 const CHEST={};RW.chests.forEach((c,i)=>CHEST[c.id]=Object.assign({n:i+1},c));
 const ACH={};for(const a of RW.ach)ACH[a.id]=a;
 function def(P){const{s,id,k}=P;
-  if(s==='heroes'){const m=/^skin(\d+)\.(gems|price)$/.exec(k);if(m){const sk=H[id].skins[+m[1]];return sk?sk[m[2]]:undefined}return H[id]&&H[id].stats[k]}
+  if(s==='heroes'){if(k==='name')return H[id]&&H[id].name;if(/^asc_(atk|hp|def)$/.test(k))return valIn(cur,{s:'eco',id:k});const mn=/^skin(\d+)_name$/.exec(k);if(mn){const sk=H[id].skins[+mn[1]];return sk?sk.name:undefined}const m=/^skin(\d+)\.(gems|price)$/.exec(k);if(m){const sk=H[id].skins[+m[1]];return sk?sk[m[2]]:undefined}return H[id]&&H[id].stats[k]}
   if(s==='skills'){const b=S[id];if(!b)return undefined;if(k.startsWith('p.'))return b.p?b.p[k.slice(2)]:undefined;return b[k]}
   if(s==='runes'){const b=R[id];if(!b)return undefined;if(k.startsWith('st.'))return b.st?b.st[k.slice(3)]:undefined;return b[k]}
+  if(s==='items'){const b=IT[id];return b?b[k]:undefined}
   if(s==='passives'){const b=PASS[id];if(!b)return undefined;return b.st?b.st[k.slice(3)]:undefined}
   if(s==='units'||s==='eco')return DF[s][id];
   if(s==='spells'){if(id.endsWith('.cd'))return SP[id.split('.')[0]].cd;return DF.spells[id]}
   if(s==='rewards'){if(id==='road')return RW.road;if(id==='hero.price')return RW.hero_price;if(id==='road.skin_gems')return RW.road_skin_gems;if(id in DF.rewards)return DF.rewards[id];
     const a=id.split('.');
-    if(a[0]==='camp')return CAMP[a[1]]?CAMP[a[1]][a[2]]:undefined;
-    if(a[0]==='chest')return CHEST[a[1]]?CHEST[a[1]][a[2]]:undefined;
+    if(a[0]==='camp')return CAMP[a[1]]?(a[2]==='stars'?(CAMP[a[1]].stars||0):CAMP[a[1]][a[2]]):undefined;
+    if(a[0]==='chest')return CHEST[a[1]]?(a[2]==='stars'?(CHEST[a[1]].stars||0):CHEST[a[1]][a[2]]):undefined;
     if(a[0]==='road'){const r=RW.road[+a[1]];return r?r[2]:undefined}
     if(a[0]==='miss'){const m=MISS[a[1]];return m?m.rw[a[2]==='c'?0:1]:undefined}
     if(a[0]==='ach'){const x=ACH[a[1]];return x&&x.rw[+a[2]]?x.rw[+a[2]][a[3]==='c'?0:1]:undefined}}
@@ -339,7 +347,7 @@ function show(F,v){if(v===null)return 'tolto';if(v===undefined)return 'nessuno';
   switch(F.kind){case 'pct':return nf(v*100,1)+'%';case 'aps':return nf(1/v,2)+' attacchi/s';
     case 'pair':return Array.isArray(v)?nf(v[0],1)+' + '+nf(v[1]*100,0)+'% potenza':nf(v);
     case 'arr':return Array.isArray(v)?F.parts.map((p,i)=>p.l+' '+(p.k==='pct'?nf(v[i]*100,0)+'%':nf(v[i])+(p.u||''))).join(', '):String(v);
-    case 'bool':return v?'sì':'no';case 'road':return Array.isArray(v)?v.length+' tappe':'';case 'rc':return nfi(recvC(v))+' monete';case 'rg':return nfi(recvG(v))+' diamanti';
+    case 'text':return '"'+String(v)+'"';case 'bool':return v?'sì':'no';case 'road':return Array.isArray(v)?v.length+' tappe':'';case 'rc':return nfi(recvC(v))+' monete';case 'rg':return nfi(recvG(v))+' diamanti';
     case 'mc':return F.goals.map(g=>nfi(Math.max(10,Math.round(v*g*ECO/10)*10))).join(' / ')+' monete';
     case 'mg':return F.goals.map(g=>nfi(Math.floor(v*g*ECO+1e-9))).join(' / ')+' diamanti';
     default:return nf(v,2)+(F.u?' '+F.u:'')}}
@@ -444,6 +452,8 @@ const _F={};
 function FD(P,o){const k=pkey(P);if(!_F[k])_F[k]=Object.assign({P},o);else Object.assign(_F[k],o);return _F[k]}
 function heroFields(h){const out=[];for(const k of HORD){if(H[h].manaless&&k.startsWith('mana')||H[h].manaless&&k==='mregen')continue;
   out.push(FD({s:'heroes',id:h,k},Object.assign({},HST[k],{title:H[h].name,icon:'hero:'+h,tab:'heroes',ent:h})))}return out}
+function nameFields(h){const out=[FD({s:'heroes',id:h,k:'name'},{l:'Nome eroe',kind:'text',neutral:true,title:H[h].name,icon:'hero:'+h,tab:'heroes',ent:h,help:'Nome dell\'eroe in tutto il gioco (menu, partita, shop). Vale per tutte le lingue: le traduzioni del nome vecchio non si usano più. Vuoto = nome originale.'})];
+  for(const s of H[h].skins){if(s.i===0)continue;out.push(FD({s:'heroes',id:h,k:'skin'+s.i+'_name'},{l:'Nome skin '+s.i,kind:'text',neutral:true,title:s.name,icon:'skin:'+h+':'+s.i,tab:'heroes',ent:h,help:'Nome della skin nel negozio, nella scheda eroe e nel Cammino. Vale per tutte le lingue. Serve l\'app 145 o più: le app vecchie mostrano il nome originale. Vuoto = nome originale.'}))}return out}
 function skinFields(h){const out=[];for(const s of H[h].skins){if(s.i===0||s.road)continue;const g=s.gems>0;
   out.push(FD({s:'heroes',id:h,k:'skin'+s.i+(g?'.gems':'.price')},{l:'Prezzo '+s.name,kind:'num',u:g?'diamanti':'monete',inv:true,title:s.name,icon:'skin:'+h+':'+s.i,tab:'heroes',ent:h,help:'Prezzo nel negozio. 0 = gratis.'}))}return out}
 function skKeys(id){const b=S[id],ks=new Set();for(const k of SKORD)if(b[k]!==undefined)ks.add(k);for(const k in (b.p||{}))if(k!=='fx'&&k!=='kind')ks.add('p.'+k);
@@ -459,16 +469,59 @@ function runeFields(id){const out=[];const b=R[id];
   for(const k of runeKeys(id)){if(k==='price')continue;const m=STL[k.slice(3)]||{l:k,kind:'num'};out.push(FD({s:'runes',id,k},Object.assign({},m,{title:'Runa '+b.name,icon:'rune:'+id,tab:'runes',ent:id})))}
   return out}
 function runePriceFields(id){const b=R[id];return ['c','g'].map(k=>FD({s:'runes',id,k},{l:k==='c'?'Prezzo in monete':'Prezzo in diamanti',kind:'num',u:k==='c'?'monete':'diamanti',inv:true,title:'Runa '+b.name,icon:'rune:'+id,tab:'runes',ent:id}))}
+// oggetti in partita: costo in foglie e statistiche (Data.ITEMS, sim.gd _recalc)
+const ITL={
+ ad:{l:'Forza fisica',kind:'num',help:'Forza fisica fissa in più (potenza degli eroi fisici e danni degli attacchi base).'},
+ ap:{l:'Potere magico',kind:'num',help:'Potere magico fisso in più (potenza degli eroi magici).'},
+ hp:{l:'Vita',kind:'num',help:'Vita massima in più.'},
+ armor:{l:'Armatura',kind:'num',help:'Armatura in più: riduce i danni fisici.'},
+ mr:{l:'Resistenza magica',kind:'num',help:'Resistenza magica in più: riduce i danni magici.'},
+ atkspd:{l:'Velocità d\'attacco',kind:'pct',help:'Più attacchi al secondo (0,40 = +40%).'},
+ crit:{l:'Probabilità critico',kind:'pct',help:'Probabilità che un attacco base sia critico.'},
+ critdmg:{l:'Critici più forti',kind:'pct',help:'Danni in più dei critici (base ×1,6).'},
+ lifesteal:{l:'Rubavita',kind:'pct',help:'Percentuale dei danni degli attacchi che torna come vita.'},
+ cdr:{l:'Riduzione ricarica',kind:'pct',help:'Accorcia le ricariche. Il totale non supera il 40%.'},
+ speed:{l:'Velocità movimento',kind:'num',help:'Velocità fissa in più (gli eroi corrono a circa 6).'},
+ regen:{l:'Rigenerazione vita',kind:'num',u:'/s',help:'Vita recuperata ogni secondo.'},
+ mana:{l:'Mana',kind:'num',help:'Mana massimo in più.'},
+ mregen:{l:'Rigenerazione mana',kind:'num',u:'/s',help:'Mana recuperato ogni secondo.'},
+ thorns:{l:'Danni rimandati',kind:'pct',help:'Percentuale dei danni presi in mischia rimandata a chi colpisce.'},
+ pen:{l:'Penetrazione armatura',kind:'pct',help:'Parte dell\'armatura nemica ignorata (massimo 50% in totale).'},
+ mpen:{l:'Penetrazione magica',kind:'pct',help:'Parte della resistenza magica nemica ignorata dalle abilità magiche (massimo 50%).'},
+ splash:{l:'Danni ad area',kind:'pct',help:'Gli attacchi base fanno questa parte dei danni anche ai nemici entro 2,5 m dal bersaglio.'},
+ antiheal:{l:'Anti-cura',kind:'pct',help:'I danni agli eroi nemici riducono le loro cure e la rigenerazione di questa parte per 3 s.'},
+ slowhit:{l:'Rallentamento sui colpi',kind:'pct',help:'Gli attacchi base rallentano il bersaglio di questa parte per 1,5 s.'},
+ sheen:{l:'Colpo dopo abilità',kind:'pct',help:'Dopo un\'abilità il prossimo attacco base fa questa parte dell\'attacco base in più (+50% del Potere magico). Una volta ogni 1,5 s.'},
+ tankdmg:{l:'Danni % vita nemica',kind:'pct',help:'Gli attacchi base fanno danni extra pari a questa parte della vita massima degli eroi nemici.'},
+ berserk:{l:'Berserk (1 sì, 0 no)',kind:'num',help:'Sotto il 50% della vita attacchi il 30% più veloce e ti curi coi colpi.'},
+ apshield:{l:'Scudo d\'emergenza (1 sì, 0 no)',kind:'num',help:'Sotto il 35% della vita arriva uno scudo, ogni 30 s.'}};
+function itemKeys(id){const ks=new Set();for(const k in ITL)if(IT[id][k]!==undefined)ks.add(k);for(const d of [pub,cur])for(const k in ((d.items||{})[id]||{}))if(ITL[k])ks.add(k);return [...ks]}
+function itemFields(id){const b=IT[id];const t='Oggetto '+b.name;const out=[FD({s:'items',id,k:'cost'},{l:'Costo',kind:'num',u:'foglie',inv:true,title:t,icon:'item:'+id,tab:'items',ent:id,help:'Foglie (oro della partita) per comprarlo.'})];
+  for(const k of itemKeys(id))out.push(FD({s:'items',id,k},Object.assign({},ITL[k],{title:t,icon:'item:'+id,tab:'items',ent:id})));return out}
+// stessa descrizione che rigenera il gioco (desc.gd item) quando cambi i numeri
+function itemEff(id){const e=Object.assign({},IT[id]);const ov=(cur.items||{})[id]||{};for(const k in ov){if(ov[k]===null)delete e[k];else e[k]=ov[k]}return e}
+function itemDesc(it){const p=v=>nf(v*100,1)+'%',n=v=>nf(v,1),f=k=>+(it[k]||0),sp=[],bits=[];
+  if(f('pen')>0)sp.push('Ignora il '+p(f('pen'))+' dell\'armatura nemica');if(f('mpen')>0)sp.push('Ignora il '+p(f('mpen'))+' della resistenza magica nemica');
+  if(f('splash')>0)sp.push('Gli attacchi base fanno il '+p(f('splash'))+' dei danni anche ai nemici entro 2,5 m dal bersaglio');
+  if(f('antiheal')>0)sp.push('I tuoi danni agli eroi riducono le loro cure del '+p(f('antiheal'))+' per 3 s');
+  if(f('slowhit')>0)sp.push('Gli attacchi base rallentano del '+p(f('slowhit'))+' per 1,5 s');
+  if(f('sheen')>0)sp.push('Dopo un\'abilità il prossimo attacco base fa danni extra ('+p(f('sheen'))+' dell\'attacco base + 50% del Potere magico), ogni 1,5 s');
+  if(f('tankdmg')>0)sp.push('I tuoi attacchi base fanno danni extra pari al '+p(f('tankdmg'))+' della vita massima degli eroi nemici');
+  if(f('berserk')>0)sp.push('BERSERK: sotto il 50% della vita attacchi il 30% più veloce e ti curi coi colpi');
+  if(f('apshield')>0)sp.push('Sotto il 35% di vita ti arriva uno scudo (ogni 30 s)');
+  const L={ad:'+%s Forza fisica',ap:'+%s Potere magico',hp:'+%s Vita',armor:'+%s Armatura',mr:'+%s Resistenza magica',atkspd:'+%s Velocità d\'attacco',crit:'+%s probabilità di critico',critdmg:'critici più forti (+%s)',lifesteal:'+%s Rubavita',cdr:'-%s Ricarica delle abilità',speed:'+%s Velocità di movimento',regen:'+%s Rigenerazione vita/s',mana:'+%s Mana',mregen:'+%s Mana/s',thorns:'rimanda il %s dei danni presi in mischia'};
+  for(const k in L)if(f(k)!==0)bits.push(L[k].replace('%s',ITL[k].kind==='pct'?p(f(k)):n(f(k))));
+  let o=sp.join('. ');if(bits.length)o+=(o?'. ':'')+bits.join(', ');return o}
 function pasKeys(id){const ks=new Set();for(const k in (PASS[id].st||{}))ks.add('st.'+k);for(const d of [pub,cur])for(const k in ((d.passives||{})[id]||{}))ks.add(k);return [...ks]}
 function pasFields(id){const b=PASS[id];return pasKeys(id).map(k=>FD({s:'passives',id,k},Object.assign({},STL[k.slice(3)]||{l:k,kind:'num'},{title:'Passiva '+b.name+' ('+H[b.hero].name+')',icon:'passive:'+b.hero,tab:'heroes',ent:b.hero})))}
 const UNITS=[
- ['minion','Minion corpo a corpo',[['minion.hp','Vita','Vita alla prima ondata. Ogni ondata (ogni 26 s) +8%.'],['minion.dmg','Danni','Danni per colpo. Ogni ondata +6%, e ×1,4 dopo il minuto 5.']]],
- ['caster','Minion a distanza',[['caster.hp','Vita','Vita alla prima ondata. Ogni ondata +8%.'],['caster.dmg','Danni','Danni per colpo. Ogni ondata +6%, e ×1,4 dopo il minuto 5.']]],
+ ['minion','Minion normali (corpo a corpo)',[['minion.hp','Vita','Vita alla prima ondata. Ogni ondata (ogni 26 s) +8%.'],['minion.dmg','Danni','Danni per colpo. Ogni ondata +6%, e ×1,4 dopo il minuto 5.']]],
+ ['caster','Minion a distanza (maghi)',[['caster.hp','Vita','Vita alla prima ondata. Ogni ondata +8%.'],['caster.dmg','Danni','Danni per colpo. Ogni ondata +6%, e ×1,4 dopo il minuto 5.']]],
  ['tower','Torri',[['tower.hp1','Vita torre esterna','La prima torre di ogni corsia. Ha 40 armatura fissa.'],['tower.hp2','Vita torre interna','La seconda torre, vicino alla base. Ha 40 armatura fissa.'],['tower.dmg','Danni torre','Danni di ogni colpo della torre: 1 colpo al secondo, gittata 9 m.']]],
  ['nexus','Nexus',[['nexus.hp','Vita Nexus','La base: se cade la partita è persa. Ha 55 armatura fissa e spara come una torre più forte.']]],
  ['cat','Pablo (boss)',[['cat.hp','Vita','Vita quando nasce. Il gioco aggiunge +4 vita per ogni secondo di partita.'],['cat.dmg','Danni','Danni per colpo. +0,12 per ogni secondo di partita.']]],
  ['fauno','Pecco Fauno',[['fauno.hp','Vita','Vita quando nasce. +4 vita per ogni secondo di partita.'],['fauno.dmg','Danni','Danni per colpo. +0,07 per ogni secondo di partita.']]],
- ['buff','Buff della giungla (sbirro)',[['buff.hp','Vita','Il mostro dei campi rosso e blu: nano sbirro nei primi 4 minuti, poi il poliziotto grosso con la mazza. Vita = (questo + 1,2 × secondi di partita) × 1,6.'],['buff.dmg','Danni','Danni per colpo ×1,6. Dopo 4 minuti ancora ×1,6.']]]];
+ ['buff','Nani sbirri e poliziotti (buff giungla)',[['buff.hp','Vita','Un mostro per ogni campo della giungla (buff rosso e blu). Nei primi 4 minuti è il nano sbirro, quelli che rinascono dopo sono i poliziotti grossi con la mazza: usano gli stessi due numeri, non si possono separare. Vita = (questo + 1,2 × secondi di partita) × 1,6.'],['buff.dmg','Danni','Danni per colpo. Il nano sbirro fa questo valore, il poliziotto dopo il minuto 4 fa ×1,6.']]]];
 function unitFields(u){const e=UNITS.find(x=>x[0]===u);return e[2].map(([id,l,help])=>FD({s:'units',id},{l,kind:'num',help,title:e[1],icon:'unit:'+UNOTE[u],tab:'units',ent:u,neutral:true}))}
 const SPF={flash:[['flash.dist','Distanza','m']],ignite:[['ignite.dmg','Danni al secondo',''],['ignite.dmg_l','Danni al secondo per livello',''],['ignite.t','Durata','s'],['ignite.r','Portata','m']],
  heal:[['heal.base','Cura',''],['heal.l','Cura per livello',''],['heal.ally','Cura alleati',''],['heal.ally_l','Cura alleati per livello',''],['heal.r','Raggio alleati','m'],['heal.spd','Velocità in più','%'],['heal.spd_t','Durata velocità','s']],
@@ -480,9 +533,31 @@ const ECOF=[['kill_gold','Oro per uccisione','Oro a chi uccide un eroe. Se la vi
  ['minion_gold','Oro minion corpo a corpo','Oro a chi dà l\'ultimo colpo. I compagni entro 13 m prendono il 30% in più (non tolto a chi lo uccide).'],
  ['caster_gold','Oro minion a distanza','Come sopra, per i minion a distanza.']];
 function ecoFields(){return ECOF.map(([id,l,help])=>FD({s:'eco',id},{l,kind:'num',u:'oro',help,title:'Economia',icon:'coin',tab:'eco',ent:'eco'}))}
+// ascensione demoniaca: bonus per stella, costi, guadagno a fine partita, negozio
+const ASCB=[['asc_atk','Attacco per stella','pct','','Tutti i danni dell\'eroe (attacchi e abilità) in più per ogni stella. Con 4%: 5 stelle = +20%.'],
+ ['asc_hp','Vita per stella','pct','','Vita massima in più per ogni stella.'],
+ ['asc_def','Difesa per stella','pct','','Armatura e resistenza magica in più per ogni stella.']];
+const ASCC=[1,2,3,4,5].map(i=>['asc_cost'+i,'Costo stella '+i,'num','stelle','Stelle demoniache per passare da '+(i-1)+' a '+i+' stelle.']);
+const ASCG=[['st_kill','Per ogni uccisione','num','stelle','Stelle a fine partita per ogni eroe ucciso.'],
+ ['st_death','Tolte per ogni morte','num','stelle','Si tolgono per ogni morte (il totale non va mai sotto 0).'],
+ ['st_dmg','Per ogni 1.000 danni','num','stelle','Danni fatti in partita (a eroi, minion, mostri e torri).'],
+ ['st_win','Bonus vittoria','num','stelle','Si aggiungono se la squadra vince.'],
+ ['st_cap','Massimo a partita','num','stelle','Tetto di stelle per una singola partita.'],
+ ['st_ranked','Classificata ×','num','','Moltiplicatore per le partite classificate.'],
+ ['st_online','Online e private ×','num','','Moltiplicatore per partite online non classificate e stanze private.'],
+ ['st_camp','Campagna ×','num','','Moltiplicatore per i livelli della campagna.'],
+ ['st_bot','Allenamento contro bot ×','num','','Moltiplicatore per le partite contro i bot.']];
+const ASCS=[0,1,2].flatMap(i=>[['stp'+i,'Pacchetto '+(i+1)+': stelle','num','stelle','Stelle date dal pacchetto in diamanti numero '+(i+1)+'.'],['stp'+i+'_gems','Pacchetto '+(i+1)+': prezzo','num','diamanti','Diamanti per comprarlo.']]);
+const ASCE=[0,1,2].flatMap(i=>[['stpe'+i,'Pacchetto € '+(i+1)+': stelle','num','stelle','Stelle del pacchetto a soldi veri (funziona solo nella versione Play Store).'],['stpe'+i+'_eur','Pacchetto € '+(i+1)+': prezzo','num','€','Prezzo in euro mostrato nello shop.']]);
+const ASC_DEF={asc_atk:0.04,asc_hp:0.04,asc_def:0.04,asc_cost1:100,asc_cost2:250,asc_cost3:500,asc_cost4:1000,asc_cost5:2000,st_kill:1,st_death:0.5,st_dmg:0.1,st_win:3,st_cap:20,st_ranked:1.5,st_online:1,st_camp:0.5,st_bot:0.5,stp0:100,stp0_gems:250,stp1:550,stp1_gems:1200,stp2:1200,stp2_gems:2400,stpe0:200,stpe0_eur:4.99,stpe1:1100,stpe1_eur:19.99,stpe2:3000,stpe2_eur:49.99};
+for(const k in ASC_DEF)DF.eco[k]=ASC_DEF[k];for(const k of ['asc_cost','asc_dmg','mst_base','mst_win','mst_kill','mst_pack','mst_pack_gems'])delete DF.eco[k];
+function ascFields(list,ent,tabn){return list.map(([id,l,kind,u,help])=>FD({s:'eco',id},{l,kind,u,help,title:'Ascensione demoniaca',icon:'asc',tab:tabn||'asc',ent,inv:/cost|_gems|_eur|st_death/.test(id),neutral:/^st_|^stp/.test(id)}))}
+function allAscFields(){return [...ascFields(ASCB,'ascb'),...ascFields(ASCC,'ascc'),...ascFields(ASCG,'ascg'),...ascFields(ASCS,'stshop','shop'),...ascFields(ASCE,'stshop','shop')]}
+function heroAscFields(h){return [['asc_atk','Attacco per stella'],['asc_hp','Vita per stella'],['asc_def','Difesa per stella']].map(([k,l])=>FD({s:'heroes',id:h,k},{l,kind:'pct',title:'Ascensione '+H[h].name,icon:'hero:'+h,tab:'heroes',ent:h,help:'Solo per questo eroe. Vuoto o uguale al valore di tutti = usa il valore generale della scheda Ascensione. 0 = questa statistica non sale con le stelle.'}))}
 const CH=RW.chapters;
 const RL=F=>F.kind==='rc'?'Monete ricevute':'Diamanti ricevuti';
-function rwF(id,o){return FD({s:'rewards',id},Object.assign({tab:'rewards'},o))}
+const RWTAB={shop:'shop',gift:'shop',road:'seasons',camp:'camp',chest:'camp',miss:'miss',ach:'miss'};
+function rwF(id,o){return FD({s:'rewards',id},Object.assign({tab:RWTAB[o.ent]||'camp'},o))}
 function rewardFields(){const out=[];
   out.push(rwF('hero.price',{l:'Prezzo di ogni eroe',kind:'num',u:'monete',inv:true,title:'Negozio',icon:'coin',ent:'shop',help:'Prezzo di un eroe nel negozio. Vale per tutti gli eroi.'}));
   out.push(rwF('gift.coins',{l:'Regalo giornaliero: monete',kind:'num',u:'monete',title:'Regalo giornaliero',icon:'gift',ent:'gift',help:'Monete del regalo che si apre una volta al giorno. Valore preso così com\'è (niente ×0,35).'}));
@@ -490,10 +565,12 @@ function rewardFields(){const out=[];
   out.push(rwF('road.skin_gems',{l:'Diamanti se la skin c\'è già',kind:'num',u:'diamanti',title:'Cammino delle coppe',icon:'trophy',ent:'road',help:'Nel Cammino delle coppe, se una tappa skin arriva quando il giocatore ce l\'ha già, riceve questi diamanti al suo posto.'}));
   for(const c of RW.camp){const tt='Campagna liv. '+CAMP[c.id].n+': '+c.title;
     out.push(rwF('camp.'+c.id+'.coins',{l:'Premio',kind:'rc',title:tt,icon:'campaign',ent:'camp',grp:c.ch,cid:c.id}));
-    out.push(rwF('camp.'+c.id+'.gems',{l:'Premio',kind:'rg',title:tt,icon:'campaign',ent:'camp',grp:c.ch,cid:c.id}))}
+    out.push(rwF('camp.'+c.id+'.gems',{l:'Premio',kind:'rg',title:tt,icon:'campaign',ent:'camp',grp:c.ch,cid:c.id}));
+    out.push(rwF('camp.'+c.id+'.stars',{l:'Stelle demoniache',kind:'num',u:'stelle',title:tt,icon:'campaign',ent:'camp',grp:c.ch,cid:c.id,help:'Stelle demoniache alla prima vittoria del livello, prese così come scritte (niente ×0,35). Serve l\'app 146 o più.'}))}
   for(const c of RW.chests){const tt='Forziere '+CHEST[c.id].n+(c.big?' (finale)':'');
     if(c.coins||c.big)out.push(rwF('chest.'+c.id+'.coins',{l:'Premio',kind:'rc',title:tt,icon:'chest',ent:'chest',cid:c.id}));
-    if(c.gems||c.big)out.push(rwF('chest.'+c.id+'.gems',{l:'Premio',kind:'rg',title:tt,icon:'chest',ent:'chest',cid:c.id}))}
+    if(c.gems||c.big)out.push(rwF('chest.'+c.id+'.gems',{l:'Premio',kind:'rg',title:tt,icon:'chest',ent:'chest',cid:c.id}));
+    out.push(rwF('chest.'+c.id+'.stars',{l:'Stelle demoniache',kind:'num',u:'stelle',title:tt,icon:'chest',ent:'chest',cid:c.id,help:'Stelle demoniache dentro il forziere, prese così come scritte. Serve l\'app 146 o più.'}))}
   out.push(rwF('road',{l:'Cammino delle coppe',kind:'road',virt:true,neutral:true,title:'Cammino delle coppe',icon:'trophy',ent:'road'}));
   for(const m of [...RW.daily,...RW.weekly]){const tt=(m.pool==='weekly'||MISS[m.id].pool==='weekly'?'Settimanale: ':'Giornaliera: ')+m.t.replace('%d','N').replace('%s','eroe');
     out.push(rwF('miss.'+m.id+'.c',{l:'Premio',lab2:'Monete per unità',kind:'mc',goals:m.goal,title:tt,icon:'missions',ent:'miss',mid:m.id}));
@@ -502,10 +579,11 @@ function rewardFields(){const out=[];
     out.push(rwF('ach.'+a.id+'.'+li+'.c',{l:'Premio',kind:'rc',title:tt,icon:'missions',ent:'ach',aid:a.id,li}));
     out.push(rwF('ach.'+a.id+'.'+li+'.g',{l:'Premio',kind:'rg',title:tt,icon:'missions',ent:'ach',aid:a.id,li}))});
   return out}
-function allFields(){const out=[];for(const h in H){out.push(...heroFields(h),...skinFields(h));for(const p of H[h].passives)out.push(...pasFields(p.id))}
+function allFields(){const out=[];for(const h in H){out.push(...nameFields(h),...heroFields(h),...heroAscFields(h),...skinFields(h));for(const p of H[h].passives)out.push(...pasFields(p.id))}
   for(const id in S)for(const k of skKeys(id))out.push(skField(id,k));
   for(const id in R){out.push(...runeFields(id),...runePriceFields(id))}
-  for(const u of UNITS)out.push(...unitFields(u[0]));for(const sp in SP)out.push(...spellFields(sp));out.push(...ecoFields(),...rewardFields());
+  for(const id in IT)out.push(...itemFields(id));
+  for(const u of UNITS)out.push(...unitFields(u[0]));for(const sp in SP)out.push(...spellFields(sp));out.push(...ecoFields(),...allAscFields(),...rewardFields());
   // chiavi di patch vecchie che il tool non conosce: restano e si vedono
   const known=new Set(out.map(f=>pkey(f.P)));RW.road.forEach((r,i)=>known.add('rewards|road.'+i+'.val|'));
   for(const d of [pub,cur])for(const s in d){if(!d[s]||typeof d[s]!=='object')continue;for(const id in d[s]){if(NEST.has(s)){if(d[s][id]&&typeof d[s][id]==='object')for(const k in d[s][id]){const P={s,id,k};if(!known.has(pkey(P))){known.add(pkey(P));out.push(FD(P,{l:k,kind:'num',title:s+' '+id,icon:'note',tab:'home',ent:''}))}}}else{const P={s,id};if(!known.has(pkey(P))){known.add(pkey(P));out.push(FD(P,{l:id,kind:'num',title:s,icon:'note',tab:'home',ent:'',unknown:true}))}}}}
@@ -536,7 +614,8 @@ function field(F,opt){opt=opt||{};const P=F.P;const w=el('<div class="f"><div cl
   const fi=w.querySelector('.fi'),fb=w.querySelector('.fb'),bd=w.querySelector('.bd'),pv=w.querySelector('.pv');
   const K=pkey(P);let ins=[];
   const mk=(cls)=>{const i=document.createElement('input');i.type='number';i.step='any';i.inputMode='decimal';if(cls)i.className=cls;return i};
-  if(F.kind==='bool'){const t=el('<button class="tog"></button>');t.onclick=()=>{set(P,!get(P))};fi.appendChild(t);ins=[t]}
+  if(F.kind==='text'){const i=document.createElement('input');i.type='text';i.style.width='190px';i.style.textAlign='left';i.maxLength=40;fi.appendChild(i);ins=[i];i.oninput=()=>{const x=i.value.trim();set(P,x===''?undefined:x,K)}}
+  else if(F.kind==='bool'){const t=el('<button class="tog"></button>');t.onclick=()=>{set(P,!get(P))};fi.appendChild(t);ins=[t]}
   else if(F.kind==='pair'){const p=el('<div class="pair"></div>');const a=mk(),b=mk();p.append(a,el('<span class="u">+</span>'),b,el('<span class="u">%</span>'));a.title='base';b.title='% potenza';fi.appendChild(p);ins=[a,b];
     const go=()=>{const v=get(P),cv=Array.isArray(v)?v.slice():[0,0];if(a.value!=='')cv[0]=+a.value;if(b.value!=='')cv[1]=Math.round(+b.value*100)/10000;set(P,cv,K)};a.oninput=go;b.oninput=go}
   else if(F.kind==='arr'){const p=el('<div class="pair"></div>');F.parts.forEach((pt,i)=>{const x=mk();x.title=pt.l;x.style.width='54px';p.append(x);if(i<F.parts.length-1)p.append(el('<span class="u">·</span>'));ins.push(x);
@@ -550,7 +629,8 @@ function field(F,opt){opt=opt||{};const P=F.P;const w=el('<div class="f"><div cl
   bRm.onclick=()=>{if(def(P)===undefined){snap('');rawSet(cur,P,0,true)}else{snap('');rawSet(cur,P,null)}changed(true)};
   fb.append(bPub,bOrg);if(opt.removable)fb.append(bRm);
   function fill(force){const v=get(P);
-    if(F.kind==='bool'){ins[0].classList.toggle('on',!!v)}
+    if(F.kind==='text'){if(force||document.activeElement!==ins[0])ins[0].value=v||''}
+    else if(F.kind==='bool'){ins[0].classList.toggle('on',!!v)}
     else if(F.kind==='pair'){if(force||document.activeElement!==ins[0])ins[0].value=Array.isArray(v)?v[0]:'';if(force||document.activeElement!==ins[1])ins[1].value=Array.isArray(v)?+(v[1]*100).toFixed(2):''}
     else if(F.kind==='arr'){ins.forEach((x,j)=>{if(force||document.activeElement!==x)x.value=Array.isArray(v)?(F.parts[j].k==='pct'?+(v[j]*100).toFixed(2):v[j]):''})}
     else if(force||document.activeElement!==ins[0])ins[0].value=toUI(F,v)}
@@ -571,7 +651,7 @@ const ROADV=143;
 function roadEff(d){const r=(d&&d.rewards)||{};if(Array.isArray(r.road)&&r.road.length)return clone(r.road).sort((a,b)=>a[0]-b[0]);const out=clone(RW.road);out.forEach((x,i)=>{const k='road.'+i+'.val';if(has(r,k)&&(x[1]==='coins'||x[1]==='gems'))x[2]=r[k]});return out}
 const SKINS=[];for(const h in H)for(const s of H[h].skins)if(s.i>0)SKINS.push([h,s.i,s.name]);
 const skinName=(h,i)=>((H[h]||{}).skins||[])[i]?H[h].skins[i].name:h+' '+i;
-function stepDesc(x){if(!x)return '';if(x[1]==='coins')return '+'+nfi(x[2])+' monete';if(x[1]==='gems')return '+'+nfi(x[2])+' diamanti';if(x[1]==='skin')return 'skin '+skinName(x[2][0],x[2][1]);if(x[1]==='hero')return 'un eroe nuovo';return String(x[1])+' '+String(x[2])}
+function stepDesc(x){if(!x)return '';if(x[1]==='coins')return '+'+nfi(x[2])+' monete';if(x[1]==='gems')return '+'+nfi(x[2])+' diamanti';if(x[1]==='stars')return '+'+nfi(x[2])+' stelle demoniache';if(x[1]==='skin')return 'skin '+skinName(x[2][0],x[2][1]);if(x[1]==='hero')return 'un eroe nuovo';return String(x[1])+' '+String(x[2])}
 function roadNote(a,b){a=a||[];b=b||[];const L=[];const am=new Map(a.map(x=>[x[0],x])),bm=new Map(b.map(x=>[x[0],x]));
   for(const x of b){const o=am.get(x[0]);if(!o)L.push(nfi(x[0])+' coppe: '+stepDesc(x)+' (nuova tappa)');else if(!same(o,x))L.push(nfi(x[0])+' coppe: '+stepDesc(o)+' → '+stepDesc(x))}
   for(const x of a)if(!bm.has(x[0]))L.push(nfi(x[0])+' coppe: tolto ('+stepDesc(x)+')');return L.join('\n')}
@@ -585,16 +665,16 @@ function roadWrite(steps,key){snap(key||'road');cur.rewards=cur.rewards||{};cons
 function roadCopy(from){snap('');cur.rewards=cur.rewards||{};const r=cur.rewards,f=(from&&from.rewards)||{};for(const k of Object.keys(r))if(k==='road'||/^road\.\d+\.val$/.test(k))delete r[k];for(const k of Object.keys(f))if(k==='road'||/^road\.\d+\.val$/.test(k))r[k]=clone(f[k]);changed(true)}
 function roadEditor(){const w=el('<div></div>');const steps=valIn(cur,{s:'rewards',id:'road'}),ps=roadEff(pub);const pm=new Map(ps.map(x=>[x[0],x])),om=new Map(RW.road.map(x=>[x[0],x]));
   const needNew=!!(cur.rewards&&Array.isArray(cur.rewards.road));
-  w.appendChild(el('<div class="'+(needNew?'warn':'info')+'">'+(needNew?'<b>Questa modifica la vedono solo i giocatori con l\'app '+ROADV+' o più.</b> Chi ha la 142 o meno continua a vedere il Cammino originale (cambiano solo i premi in monete e diamanti rimasti alla stessa soglia). ':'')+'Le tappe già riscattate restano riscattate: se sposti una skin su una soglia nuova, chi l\'aveva già presa riceve '+nfi(get({s:'rewards',id:'road.skin_gems'}))+' diamanti al suo posto, chi non l\'aveva la prende alla soglia nuova.</div>'));
+  w.appendChild(el('<div class="'+(needNew?'warn':'info')+'">'+(needNew?'<b>Questa modifica la vedono solo i giocatori con l\'app '+(steps.some(x=>x[1]==='stars')?146:ROADV)+' o più.</b> Chi ha la 142 o meno continua a vedere il Cammino originale (cambiano solo i premi in monete e diamanti rimasti alla stessa soglia). ':'')+'Le tappe già riscattate restano riscattate: se sposti una skin su una soglia nuova, chi l\'aveva già presa riceve '+nfi(get({s:'rewards',id:'road.skin_gems'}))+' diamanti al suo posto, chi non l\'aveva la prende alla soglia nuova.</div>'));
   const list=el('<div></div>');w.appendChild(list);
-  steps.forEach((x,i)=>{const row=el('<div class="rrow"><img alt=""><div class="rc"><input type="number" class="tr"><span class="u">coppe</span></div><select class="ty"><option value="coins">Monete</option><option value="gems">Diamanti</option><option value="skin">Skin</option><option value="hero">Eroe nuovo</option></select><div class="rv"></div><button class="sm gh rm" title="Togli tappa">✕</button><div class="rb"></div></div>');
+  steps.forEach((x,i)=>{const row=el('<div class="rrow"><img alt=""><div class="rc"><input type="number" class="tr"><span class="u">coppe</span></div><select class="ty"><option value="coins">Monete</option><option value="gems">Diamanti</option><option value="stars">Stelle demoniache</option><option value="skin">Skin</option><option value="hero">Eroe nuovo</option></select><div class="rv"></div><button class="sm gh rm" title="Togli tappa">✕</button><div class="rb"></div></div>');
     const p0=pm.get(x[0]),o0=om.get(x[0]);const mod=!same(p0,x),org=!same(o0,x);if(mod)row.classList.add('mod');
-    const img=row.querySelector('img');img.src=x[1]==='coins'?IMG('ui:coin'):x[1]==='gems'?IMG('ui:gem'):x[1]==='skin'?(G.img['hero:'+x[2][0]+':'+x[2][1]]||IMG('hero:'+x[2][0]+':0')):IMG('ui:heroes');
+    const img=row.querySelector('img');img.src=x[1]==='coins'?IMG('ui:coin'):x[1]==='gems'?IMG('ui:gem'):x[1]==='stars'?IMG('ui:asc'):x[1]==='skin'?(G.img['hero:'+x[2][0]+':'+x[2][1]]||IMG('hero:'+x[2][0]+':0')):IMG('ui:heroes');
     const tr=row.querySelector('.tr');tr.value=x[0];tr.onchange=()=>{const v=Math.max(0,Math.round(+tr.value||0));if(steps.some((y,j)=>j!==i&&y[0]===v)){toast('C\'è già una tappa a '+v+' coppe');tr.value=x[0];return}const st=clone(steps);st[i][0]=v;roadWrite(st)};
     const ty=row.querySelector('.ty');if(x[1]==='avatar')ty.appendChild(el('<option value="avatar">Emblema</option>'));ty.value=x[1];
-    ty.onchange=()=>{const st=clone(steps);const t=ty.value;st[i]=[x[0],t,t==='coins'?500:t==='gems'?50:t==='skin'?[SKINS[0][0],SKINS[0][1]]:t==='hero'?1:x[2]];roadWrite(st)};
+    ty.onchange=()=>{const st=clone(steps);const t=ty.value;st[i]=[x[0],t,t==='coins'?500:t==='gems'?50:t==='stars'?50:t==='skin'?[SKINS[0][0],SKINS[0][1]]:t==='hero'?1:x[2]];roadWrite(st)};
     const rv=row.querySelector('.rv');
-    if(x[1]==='coins'||x[1]==='gems'){const i2=document.createElement('input');i2.type='number';i2.inputMode='numeric';i2.value=x[2];i2.onchange=()=>{if(i2.value==='')return;const st=clone(steps);st[i][2]=Math.max(0,Math.round(+i2.value));roadWrite(st,'road'+i)};rv.appendChild(i2)}
+    if(x[1]==='coins'||x[1]==='gems'||x[1]==='stars'){const i2=document.createElement('input');i2.type='number';i2.inputMode='numeric';i2.value=x[2];i2.onchange=()=>{if(i2.value==='')return;const st=clone(steps);st[i][2]=Math.max(0,Math.round(+i2.value));roadWrite(st,'road'+i)};rv.appendChild(i2)}
     else if(x[1]==='skin'){const se=document.createElement('select');for(const[h,si,nm]of SKINS){const o=el('<option></option>');o.value=h+':'+si;o.textContent=nm+' ('+H[h].name+')';se.appendChild(o)}se.value=x[2][0]+':'+x[2][1];se.onchange=()=>{const a=se.value.split(':');const st=clone(steps);st[i][2]=[a[0],+a[1]];roadWrite(st)};rv.appendChild(se)}
     else if(x[1]==='hero')rv.appendChild(el('<span class="pv">Il primo eroe che non ha (se li ha tutti: 300 diamanti)</span>'));
     else rv.appendChild(el('<span class="pv">'+esc(String(x[2]))+'</span>'));
@@ -614,11 +694,14 @@ function roadEditor(){const w=el('<div></div>');const steps=valIn(cur,{s:'reward
   return w}
 
 // ============================================================ viste
-const TABS=[['home','Panoramica','ui:logo'],['heroes','Eroi','ui:heroes'],['skills','Abilità','ui:play'],['runes','Rune','rune:arcano'],['spells','Incantesimi','spell:flash'],['units','Mappa e mostri','unit:cat'],['eco','Economia','ui:coin'],['rewards','Premi e prezzi','ui:gem'],['seasons','Stagioni','rank:7'],['version','Versione app','ui:shop'],['hist','Storico','ui:missions']];
-function buildTabs(){const n=$('#tabs');n.innerHTML='';for(const[k,l,i]of TABS){const b=el('<button data-t="'+k+'"><img alt=""><span></span><i class="d"></i></button>');b.querySelector('img').src=IMG(i);b.querySelector('span').textContent=l;b.onclick=()=>{tab=k;q='';render();window.scrollTo(0,0)};n.appendChild(b)}}
+const TABS=[['home','Panoramica','ui:logo'],
+ ['#','Partita'],['heroes','Eroi','ui:heroes'],['skills','Abilità','ui:play'],['runes','Rune','rune:arcano'],['items','Oggetti','item:tablet'],['spells','Incantesimi','spell:flash'],['units','Minion e mostri','unit:minion'],['eco','Oro in partita','ui:coin'],
+ ['#','Progressi e premi'],['asc','Ascensione','ui:asc'],['camp','Campagna','ui:campaign'],['miss','Missioni e traguardi','ui:missions'],['seasons','Stagioni e Cammino','ui:trophy'],['shop','Negozio','ui:shop'],
+ ['#','Gestione'],['players','Giocatori','ui:heroes'],['gifts','Regali','ui:gift'],['version','Versione app','ui:logo'],['hist','Storico patch','ui:missions']];
+function buildTabs(){const n=$('#tabs');n.innerHTML='';for(const[k,l,i]of TABS){if(k==='#'){n.appendChild(el('<span class="ng">'+esc(l)+'</span>'));continue}const b=el('<button data-t="'+k+'"><img alt=""><span></span><i class="d"></i></button>');b.querySelector('img').src=IMG(i);b.querySelector('span').textContent=l;b.onclick=()=>{tab=k;q='';render();window.scrollTo(0,0)};n.appendChild(b)}}
 function render(){const y=window.scrollY;LIVE=[];document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));const v=$('#view');v.innerHTML='';
-  $('#foot').classList.toggle('hide',['seasons','version','hist'].includes(tab));
-  ({home:vHome,heroes:vHeroes,skills:vSkills,runes:vRunes,spells:vSpells,units:vUnits,eco:vEco,rewards:vRewards,seasons:vSeasons,version:vVersion,hist:vHist})[tab](v);marks();window.scrollTo(0,y)}
+  $('#foot').classList.toggle('hide',['version','hist','players','gifts'].includes(tab));
+  ({home:vHome,heroes:vHeroes,skills:vSkills,runes:vRunes,items:vItems,spells:vSpells,units:vUnits,eco:vEco,asc:vAsc,camp:vCamp,miss:vMiss,seasons:vSeasons,shop:vShop,players:vPlayers,gifts:vGifts,version:vVersion,hist:vHist})[tab](v);marks();window.scrollTo(0,y)}
 function searchBar(v,ph,extra){const t=el('<div class="tools"><input type="search"></div>');const i=t.querySelector('input');i.placeholder=ph;i.value=q;if(extra)t.appendChild(extra);v.appendChild(t);return i}
 const match=s=>!q||String(s).toLowerCase().includes(q.toLowerCase());
 
@@ -637,15 +720,18 @@ function vHome(v){const p=state.patch;const ds=diffs();
   const unk=ds.filter(d=>d.F.unknown);if(unk.length)v.appendChild(el('<div class="warn">Nella patch ci sono '+unk.length+' chiavi che il gioco non usa più: restano come sono.</div>'))}
 
 function heroChips(v,cur0,onSel,showAll){const w=el('<div class="chips"></div>');if(showAll){const a=el('<div class="chip'+(cur0===''?' on':'')+'"><img alt=""><span>Tutti</span></div>');a.querySelector('img').src=IMG('ui:heroes');a.onclick=()=>onSel('');w.appendChild(a)}
-  for(const h in H){const c=el('<div class="chip'+(cur0===h?' on':'')+'"><img alt=""><span></span><i class="d"></i></div>');c.querySelector('img').src=IMG('hero:'+h+':0');c.querySelector('span').textContent=H[h].name;c.dataset.ent=h;c.onclick=()=>onSel(h);w.appendChild(c)}v.appendChild(w);return w}
+  for(const h in H){const c=el('<div class="chip'+(cur0===h?' on':'')+'"><img alt=""><span></span><i class="d"></i></div>');c.querySelector('img').src=IMG('hero:'+h+':0');c.querySelector('span').textContent=get({s:'heroes',id:h,k:'name'})||H[h].name;c.dataset.ent=h;c.onclick=()=>onSel(h);w.appendChild(c)}v.appendChild(w);return w}
 function vHeroes(v){if(!selHero||!H[selHero])selHero=Object.keys(H)[0];const h=selHero,b=H[h];
   heroChips(v,h,x=>{selHero=x;render()});
   const w=el('<div class="hero"><div class="hcard"></div><div class="side"></div></div>');v.appendChild(w);
-  const hc=w.querySelector('.hcard');hc.innerHTML=`<img class="full" src="${G.img['full:'+h+':0']||IMG('hero:'+h+':0')}"><h2 class="tt">${esc(b.name)}</h2><div class="ti">${esc(b.title)}</div><span class="tag w">${esc(b.role)}</span><span class="tag ${b.dmgtype==='phys'?'ph':'mg'}">${b.dmgtype==='phys'?'Danni fisici':'Danni magici'}</span>${b.manaless?'<span class="tag">Senza mana</span>':''}<div class="kv"></div>`;
+  const hc=w.querySelector('.hcard');hc.innerHTML=`<img class="full" src="${G.img['full:'+h+':0']||IMG('hero:'+h+':0')}"><h2 class="tt">${esc(get({s:'heroes',id:h,k:'name'})||b.name)}</h2><div class="ti">${esc(b.title)}</div><span class="tag w">${esc(b.role)}</span><span class="tag ${b.dmgtype==='phys'?'ph':'mg'}">${b.dmgtype==='phys'?'Danni fisici':'Danni magici'}</span>${b.manaless?'<span class="tag">Senza mana</span>':''}<div class="kv"></div>`;
   const kv=hc.querySelector('.kv');const drawKv=()=>{const V=k=>get({s:'heroes',id:h,k}),Vp=k=>pubv({s:'heroes',id:h,k});const a=heroAt(h,1,V),z=heroAt(h,LV,V),ap=heroAt(h,1,Vp),zp=heroAt(h,LV,Vp);
     const row=(l,x,y,xp,yp,f)=>`<div>${l}</div><div class="v${Math.abs(x-xp)>1e-6?' c':''}">${f(x)}</div><div class="v${Math.abs(y-yp)>1e-6?' c':''}">${f(y)}</div>`;
     kv.innerHTML='<div class="h">senza oggetti</div><div class="h v">liv 1</div><div class="h v">liv 13</div>'+row('Vita',a.hp,z.hp,ap.hp,zp.hp,nfi)+row('Armatura',a.ar,z.ar,ap.ar,zp.ar,x=>nf(x,1))+row('Danni fisici presi',redPct(a.ar),redPct(z.ar),redPct(ap.ar),redPct(zp.ar),x=>nf(x,0)+'%')+row('Res. magica',a.mres,z.mres,a.mres,z.mres,x=>nf(x,1))+row('Attacco',a.dmg,z.dmg,ap.dmg,zp.dmg,x=>nf(x,1))+row('Attacchi/s',a.aps,z.aps,ap.aps,zp.aps,x=>nf(x))+row('DPS attacchi',a.dmg*a.aps,z.dmg*z.aps,ap.dmg*ap.aps,zp.dmg*zp.aps,nfi)+(b.manaless?'':row('Mana',a.mana,z.mana,ap.mana,zp.mana,nfi)+row('Mana/s',a.mr,z.mr,ap.mr,zp.mr,x=>nf(x,1)))};drawKv();LIVE.push(drawKv);
   const sd=w.querySelector('.side');
+  const c0=card(IMG('hero:'+h+':0'),'Nomi','Nome dell\'eroe e delle sue skin. Scrivi e basta: si vede subito nelle note.',h);for(const F of nameFields(h))c0.appendChild(field(F));sd.appendChild(c0);
+  const ca=card(IMG('ui:asc'),'Ascensione demoniaca','Quanto sale questo eroe per ogni stella (max 5). Se lasci il valore generale usa quello della scheda Ascensione.',h);
+  for(const F of heroAscFields(h))ca.appendChild(field(F,{prev:x=>`A 5 stelle: <b>+${nf(x*500,1)}%</b>`}));
   const c1=card(IMG('hero:'+h+':0'),'Statistiche','Le basi dell\'eroe. Tocca ? per sapere cosa cambia in partita.',h);
   for(const F of heroFields(h)){const k=F.P.k;c1.appendChild(field(F,{prev:v2=>{const V=kk=>kk===k?v2:get({s:'heroes',id:h,k:kk});const a=heroAt(h,1,V),z=heroAt(h,LV,V);
     return ({hp:`Liv 1 <b>${nfi(a.hp)}</b> · liv 13 <b>${nfi(z.hp)}</b>`,hp_l:`Liv 13 <b>${nfi(z.hp)}</b>`,armor:`Prende il <b>${nf(redPct(a.ar),0)}%</b> dei danni fisici al liv 1, il <b>${nf(redPct(z.ar),0)}%</b> al 13`,armor_l:`Liv 13 <b>${nf(z.ar,1)}</b> armatura`,
@@ -665,6 +751,7 @@ function vHeroes(v){if(!selHero||!H[selHero])selHero=Object.keys(H)[0];const h=s
     box.appendChild(addSel(Object.keys(STL).filter(k=>!have.has(k)).map(k=>[k,STL[k].l]),k=>{set({s:'passives',id:p.id,k:'st.'+k},STL[k].kind==='pct'?0.05:5);render()},'Aggiungi statistica…'));
     c2.appendChild(box)}
   sd.appendChild(c2);
+  sd.appendChild(ca);
   // skin
   const c3=card(IMG('hero:'+h+':0'),'Skin','Prezzi nel negozio. Le skin del Cammino delle coppe non si comprano.',h);const sg=el('<div class="skins"></div>');
   for(const s of b.skins){const it=el('<div class="skin"><img alt=""><b></b><div class="s" style="color:var(--dim);font-size:12px"></div></div>');it.querySelector('img').src=G.img['hero:'+h+':'+s.i]||IMG('hero:'+h+':0');it.querySelector('b').textContent=s.name;
@@ -708,6 +795,16 @@ function vRunes(v){const inp=searchBar(v,'Cerca runa');v.appendChild(el('<div cl
     const have=new Set(runeKeys(id).filter(k=>k!=='price'&&get({s:'runes',id,k})!==null&&get({s:'runes',id,k})!==undefined).map(k=>k.slice(3)));
     c.appendChild(addSel(Object.keys(STL).filter(k=>!have.has(k)).map(k=>[k,STL[k].l]),k=>{set({s:'runes',id,k:'st.'+k},STL[k].kind==='pct'?0.05:5);render()},'Aggiungi statistica…'));g.appendChild(c)}marks()};
   inp.oninput=()=>{q=inp.value;draw()};draw()}
+function vItems(v){const inp=searchBar(v,'Cerca oggetto');v.appendChild(el('<div class="intro">Oggetti che si comprano in partita con le foglie. Cambi costo e statistiche: con la solita patch il gioco li applica e riscrive la descrizione da solo, in italiano, inglese e arabo.</div>'));
+  const g=el('<div class="grid"></div>');v.appendChild(g);
+  const draw=()=>{g.innerHTML='';LIVE=[];for(const id in IT){const b=IT[id];if(!match(b.name))continue;const c=card(IMG('item:'+id),esc(b.name),'',id);
+    const pr=el('<div></div>');const drawP=()=>{pr.innerHTML='<span class="tag">'+esc(ITC[b.cat]||'')+'</span> <span class="tag w">'+nfi(get({s:'items',id,k:'cost'})||0)+' foglie</span>'};drawP();LIVE.push(drawP);c.querySelector('.s').appendChild(pr);
+    const dd=el('<div class="desc"></div>');c.appendChild(dd);const drawD=()=>{const ov=(cur.items||{})[id];const chg=ov&&Object.keys(ov).some(k=>k!=='cost');const txt=chg?itemDesc(itemEff(id)):b.desc;dd.classList.toggle('chg',txt!==b.desc);dd.innerHTML='<span class="h">Descrizione in gioco</span>'+esc(txt)+(txt!==b.desc?'<span class="old">'+esc(b.desc)+'</span>':'')};drawD();LIVE.push(drawD);
+    const fs=itemFields(id);c.appendChild(sec('Prezzo'));c.appendChild(field(fs[0]));
+    if(fs.length>1)c.appendChild(sec('Statistiche'));for(const F of fs.slice(1))c.appendChild(field(F,{removable:true}));
+    const have=new Set(itemKeys(id).filter(k=>get({s:'items',id,k})!==null&&get({s:'items',id,k})!==undefined));
+    c.appendChild(addSel(Object.keys(ITL).filter(k=>!have.has(k)).map(k=>[k,ITL[k].l]),k=>{set({s:'items',id,k},ITL[k].kind==='pct'?0.1:10);render()},'Aggiungi statistica…'));g.appendChild(c)}marks()};
+  inp.oninput=()=>{q=inp.value;draw()};draw()}
 function vSpells(v){v.appendChild(el('<div class="intro">Incantesimi che il giocatore porta in partita. La descrizione si riscrive da sola.</div>'));const g=el('<div class="grid"></div>');v.appendChild(g);
   const V=(k,d)=>{const x=get({s:'spells',id:k});return x===undefined?d:+x};
   for(const sp in SP){const c=card(IMG('spell:'+sp),esc(SP[sp].name),'',sp);const dd=el('<div class="desc"></div>');c.appendChild(dd);const base0=Desc.spell(sp,0,(k,d)=>d);
@@ -716,38 +813,62 @@ function vSpells(v){v.appendChild(el('<div class="intro">Incantesimi che il gioc
     for(const F of spellFields(sp)){const k=F.P.id;let pv=null;if(PER[k])pv=x=>`Liv 13: <b>${nfi(x+V(PER[k],0)*12)}</b>`;else if(BASEOF[k])pv=x=>`Liv 13: <b>${nfi(V(BASEOF[k],0)+x*12)}</b>`;else if(k==='ignite.t')pv=x=>`Danni totali liv 1: <b>${nfi(V('ignite.dmg',14)*x)}</b> · liv 13: <b>${nfi((V('ignite.dmg',14)+V('ignite.dmg_l',5)*12)*x)}</b>`;
       c.appendChild(field(F,{prev:pv}))}
     g.appendChild(c)}}
-function vUnits(v){v.appendChild(el('<div class="intro">Un\'ondata di minion esce ogni 26 secondi. Dopo il minuto 5 i minion picchiano il 40% in più. Pablo e il Fauno diventano più forti col passare del tempo. I mostri piccoli della giungla oggi non nascono più (c\'è solo lo sbirro), per questo non sono qui.</div>'));
+function vUnits(v){v.appendChild(el('<div class="intro">Un\'ondata di minion esce ogni 26 secondi. Dopo il minuto 5 i minion picchiano il 40% in più. Pablo e il Fauno diventano più forti col passare del tempo. Nella giungla c\'è un solo mostro per campo: il nano sbirro, che dopo il minuto 4 rinasce come poliziotto grosso.</div>'));
   const g=el('<div class="grid"></div>');v.appendChild(g);const U=id=>get({s:'units',id});
   const pv={'minion.hp':x=>`Ondata 1: <b>${nfi(x*1.08)}</b> · minuto 5: <b>${nfi(x*(1+0.08*12))}</b> · minuto 10: <b>${nfi(x*(1+0.08*23))}</b>`,'caster.hp':x=>`Ondata 1: <b>${nfi(x*1.08)}</b> · minuto 5: <b>${nfi(x*(1+0.08*12))}</b> · minuto 10: <b>${nfi(x*(1+0.08*23))}</b>`,
    'minion.dmg':x=>`Ondata 1: <b>${nf(x*1.06,1)}</b> · minuto 5: <b>${nf(x*(1+0.06*12)*1.4,1)}</b> · minuto 10: <b>${nf(x*(1+0.06*23)*1.4,1)}</b>`,'caster.dmg':x=>`Ondata 1: <b>${nf(x*1.06,1)}</b> · minuto 5: <b>${nf(x*(1+0.06*12)*1.4,1)}</b> · minuto 10: <b>${nf(x*(1+0.06*23)*1.4,1)}</b>`,
    'cat.hp':x=>`Se nasce al minuto 3: <b>${nfi(x+720)}</b> · al 6: <b>${nfi(x+1440)}</b> · al 10: <b>${nfi(x+2400)}</b>`,'cat.dmg':x=>`Minuto 3: <b>${nfi(x+21.6)}</b> · 6: <b>${nfi(x+43.2)}</b> · 10: <b>${nfi(x+72)}</b>`,
    'fauno.hp':x=>`Minuto 3: <b>${nfi(x+720)}</b> · 6: <b>${nfi(x+1440)}</b>`,'fauno.dmg':x=>`Minuto 3: <b>${nfi(x+12.6)}</b> · 6: <b>${nfi(x+25.2)}</b>`,
-   'buff.hp':x=>`Inizio: <b>${nfi(x*1.6)}</b> · minuto 4: <b>${nfi((x+288)*1.6)}</b> · minuto 8: <b>${nfi((x+576)*1.6)}</b>`,'buff.dmg':x=>`Primi 4 minuti: <b>${nf(x*1.6,1)}</b> · dopo: <b>${nf(x*2.56,1)}</b>`,
+   'buff.hp':x=>`Nano sbirro a inizio partita: <b>${nfi(x*1.6)}</b> · poliziotto al minuto 4: <b>${nfi((x+288)*1.6)}</b> · al minuto 8: <b>${nfi((x+576)*1.6)}</b>`,'buff.dmg':x=>`Nano sbirro: <b>${nf(x,1)}</b> a colpo · poliziotto (dopo 4 min): <b>${nf(x*1.6,1)}</b>`,
    'tower.dmg':x=>`Contro 50 di armatura: <b>${nfi(x*100/150)}</b> a colpo`,'tower.hp1':x=>`Con 40 armatura servono <b>${nfi(x*1.4)}</b> danni fisici`,'tower.hp2':x=>`Con 40 armatura servono <b>${nfi(x*1.4)}</b> danni fisici`,'nexus.hp':x=>`Con 55 armatura servono <b>${nfi(x*1.55)}</b> danni fisici`};
   for(const u of UNITS){const c=card(IMG('unit:'+u[0]),esc(u[1]),'',u[0]);for(const F of unitFields(u[0]))c.appendChild(field(F,{prev:pv[F.P.id]}));g.appendChild(c)}}
-function vEco(v){v.appendChild(el('<div class="intro">Oro dentro la partita, per comprare oggetti. Le monete del menu sono in "Premi e prezzi". L\'oro passivo (3 al secondo) è fisso nel codice e non si cambia da qui.</div>'));
+function vEco(v){v.appendChild(el('<div class="intro">Oro dentro la partita, per comprare oggetti. Monete, diamanti e stelle del menu sono in Progressi e premi. L\'oro passivo (3 al secondo) è fisso nel codice e non si cambia da qui.</div>'));
   const c=card(IMG('ui:coin'),'Oro in partita','','eco');const pv={kill_gold:x=>`Uccisioni di fila della stessa vittima: <b>${[1,0.733,0.533,0.4,0.333].map(f=>nfi(x*f)).join(' → ')}</b> · assist <b>${nfi(x/2)}</b>`,minion_gold:x=>`Compagni vicini: +<b>${nf(x*0.3,1)}</b> · un\'ondata (3 minion) = <b>${nfi(x*3)}</b>`,caster_gold:x=>`Compagni vicini: +<b>${nf(x*0.3,1)}</b>`};
-  for(const F of ecoFields())c.appendChild(field(F,{prev:pv[F.P.id]}));v.appendChild(c)}
-function vRewards(v){const inp=searchBar(v,'Cerca premio (es. Angera, forziere, uccisioni)');
-  v.appendChild(el('<div class="intro"><b>Campagna, forzieri e traguardi:</b> scrivi quello che il giocatore <b>riceve davvero</b>. Il gioco moltiplica il valore salvato per 0,35 (monete arrotondate a 10), il tool fa il conto da solo. <b>Missioni:</b> scrivi il premio per ogni unità (es. per ogni uccisione) e vedi il totale per i 3 livelli. <b>Regalo e Cammino delle coppe:</b> valori presi così come sono.</div>'));
+  for(const F of ecoFields())c.appendChild(field(F,{prev:pv[F.P.id]}));v.appendChild(c);
+}
+const SUBH=t=>el('<div class="sec" style="color:var(--tx);text-transform:none;font-size:14px;letter-spacing:0">'+t+'</div>');
+function vAsc(v){const V=k=>get({s:'eco',id:k});
+  v.appendChild(el('<div class="intro"><b>Ascensione demoniaca.</b> Ogni eroe sale fino a 5 stelle spendendo stelle demoniache (valuta unica per tutti gli eroi). Ogni stella dà attacco, vita e difesa in più in partita. Le stelle arrivano a fine partita in base a come hai giocato, da campagna, forzieri, Cammino, fine stagione, regali e shop. I valori per un solo eroe si cambiano nella sua pagina (scheda Eroi). <b>Serve l\'app 146 o più.</b></div>'));
+  const g=el('<div class="grid"></div>');v.appendChild(g);
+  const c1=card(IMG('ui:asc'),'Bonus per stella','Per tutti gli eroi (se non hanno un valore loro).','ascb');
+  for(const F of ascFields(ASCB,'ascb'))c1.appendChild(field(F,{prev:x=>`1 stella <b>+${nf(x*100,1)}%</b> · 3 stelle <b>+${nf(x*300,1)}%</b> · 5 stelle <b>+${nf(x*500,1)}%</b>`}));g.appendChild(c1);
+  const c2=card(IMG('ui:asc'),'Costo delle stelle','Stelle demoniache per ogni gradino.','ascc');
+  for(const F of ascFields(ASCC,'ascc'))c2.appendChild(field(F));
+  const tot=el('<div class="info"></div>');c2.appendChild(tot);const dt0=()=>{let t=0;for(let i=1;i<=5;i++)t+=+V('asc_cost'+i);tot.innerHTML='Da 0 a 5 stelle servono <b>'+nfi(t)+'</b> stelle demoniache. Solo comprando col pacchetto più grande: circa <b>'+nfi(Math.ceil(t/V('stp2'))*V('stp2_gems'))+'</b> diamanti.'};dt0();LIVE.push(dt0);g.appendChild(c2);
+  const c3=card(IMG('ui:asc'),'Stelle a fine partita','In ogni modalità tranne il tutorial. Può uscire anche 0.','ascg');
+  const ex=el('<div class="info"></div>');const dex=()=>{const sc=(k,d,dm,w)=>Math.max(0,k*V('st_kill')-d*V('st_death')+dm/1000*V('st_dmg')+(w?V('st_win'):0));const cap=x=>Math.min(V('st_cap'),Math.round(x));
+    ex.innerHTML='Esempi: classificata vinta 6/2 con 40.000 danni = <b>'+cap(sc(6,2,40000,1)*V('st_ranked'))+'</b> · online persa 2/5 con 15.000 danni = <b>'+cap(sc(2,5,15000,0)*V('st_online'))+'</b> · contro bot vinta 10/0 con 50.000 danni = <b>'+cap(sc(10,0,50000,1)*V('st_bot'))+'</b>'};dex();LIVE.push(dex);c3.appendChild(ex);
+  for(const F of ascFields(ASCG,'ascg'))c3.appendChild(field(F));g.appendChild(c3);
+  const c4=card(IMG('ui:shop'),'Stelle nello shop','Pacchetti in diamanti e in euro: si cambiano nella scheda Negozio.','');const bt=el('<button class="cy">Vai al Negozio →</button>');bt.onclick=()=>{tab='shop';render();window.scrollTo(0,0)};c4.appendChild(bt);g.appendChild(c4)}
+function vCamp(v){const inp=searchBar(v,'Cerca livello o forziere');
+  v.appendChild(el('<div class="intro">Scrivi quello che il giocatore <b>riceve davvero</b>: monete e diamanti sono moltiplicati per 0,35 dal gioco e il tool fa il conto da solo. Le <b>stelle demoniache</b> sono prese così come scritte (app 146 o più).</div>'));
   const box=el('<div></div>');v.appendChild(box);
-  const draw=()=>{box.innerHTML='';const g=el('<div class="grid"></div>');box.appendChild(g);const all=rewardFields();
-    const one=(ent)=>all.filter(F=>F.ent===ent);
-    if(match('negozio prezzo eroe regalo cammino coppe skin')){const c=card(IMG('ui:shop'),'Negozio e regalo','','shop');for(const F of [...one('shop'),...one('gift')])c.appendChild(field(F));c.appendChild(field(one('road')[0]));g.appendChild(c)}
+  const draw=()=>{box.innerHTML='';LIVE=[];const g=el('<div class="grid"></div>');box.appendChild(g);const all=rewardFields();
     for(let ch=1;ch<CH.length;ch++){const cs=RW.camp.filter(c=>c.ch===ch);if(!cs.length)continue;if(!match(CH[ch]+' campagna '+cs.map(c=>c.title).join(' ')))continue;
-      const c=card(IMG('ui:campaign'),'Campagna: '+esc(CH[ch]),'Premio della prima vittoria. Ogni stella nuova dà anche +10 monete.','camp');
-      for(const cc of cs){c.appendChild(el('<div class="sec" style="color:var(--tx);text-transform:none;font-size:14px;letter-spacing:0">'+CAMP[cc.id].n+'. '+esc(cc.title)+'</div>'));for(const F of all.filter(F=>F.cid===cc.id&&F.ent==='camp'))c.appendChild(field(F,{label:RL(F)}))}g.appendChild(c)}
-    if(match('forziere forzieri chest campagna')){const c=card(IMG('ui:chest'),'Forzieri della campagna','Si aprono dopo il livello indicato.','chest');for(const ck of RW.chests){const fs=all.filter(F=>F.cid===ck.id&&F.ent==='chest');if(!fs.length)continue;const after=CAMP[ck.after];c.appendChild(el('<div class="sec" style="color:var(--tx);text-transform:none;font-size:14px;letter-spacing:0">Forziere '+CHEST[ck.id].n+(ck.big?' (finale)':'')+' · dopo il liv. '+(after?after.n+' '+esc(after.title):ck.after)+'</div>'));for(const F of fs)c.appendChild(field(F,{label:RL(F)}))}g.appendChild(c)}
-    if(match('cammino coppe road trofei skin')){const c=card(IMG('ui:trophy'),'Cammino delle coppe','Premi a soglia di coppe migliori (si prendono una volta sola). Scegli per ogni tappa: monete, diamanti, una skin o un eroe.','road');c.style.gridColumn='1/-1';c.appendChild(roadEditor());g.appendChild(c)}
-    for(const[pool,nm]of [['daily','Missioni giornaliere'],['weekly','Missioni settimanali']]){const ms=RW[pool].filter(m=>match(nm+' '+m.t));if(!ms.length)continue;const c=card(IMG('ui:missions'),nm,'Ogni missione ha 3 livelli di difficoltà (obiettivi diversi). Premio = per unità × obiettivo × 0,35.','miss');
-      for(const m of ms){c.appendChild(el('<div class="sec" style="color:var(--tx);text-transform:none;font-size:14px;letter-spacing:0">'+esc(m.t.replace('%d',m.goal.map(nfi).join(' / ')).replace('%s','eroe'))+'</div>'));for(const F of all.filter(F=>F.mid===m.id))c.appendChild(field(F,{label:F.lab2,help:'Premio per ogni unità dell\'obiettivo (per ogni uccisione, ogni danno, ogni partita…). Minimo 10 monete. Esempio: 30 per uccisione con obiettivo 5 = 30 × 5 × 0,35 = 50 monete.'}))}g.appendChild(c)}
-    for(const a of RW.ach){if(!match('traguardo '+a.t))continue;const c=card(IMG('ui:missions'),'Traguardo',esc(a.t.replace('%d','N')),'ach');a.lv.forEach((lv,li)=>{c.appendChild(el('<div class="sec" style="color:var(--tx);text-transform:none;font-size:14px;letter-spacing:0">Livello '+(li+1)+': '+esc(a.t.replace('%d',nfi(lv)))+'</div>'));for(const F of all.filter(F=>F.aid===a.id&&F.li===li))c.appendChild(field(F,{label:RL(F)}))});g.appendChild(c)}
-    marks()};
-  inp.oninput=()=>{q=inp.value;LIVE=[];draw()};draw()}
+      const c=card(IMG('ui:campaign'),'Capitolo: '+esc(CH[ch]),'Premio della prima vittoria. Ogni stella del livello dà anche +10 monete.','camp');
+      for(const cc of cs){c.appendChild(SUBH(CAMP[cc.id].n+'. '+esc(cc.title)));for(const F of all.filter(F=>F.cid===cc.id&&F.ent==='camp'))c.appendChild(field(F,{label:F.kind==='num'?'Stelle demoniache':RL(F)}))}g.appendChild(c)}
+    if(match('forziere forzieri chest campagna')){const c=card(IMG('ui:chest'),'Forzieri della campagna','Si aprono dopo il livello indicato.','chest');for(const ck of RW.chests){const fs=all.filter(F=>F.cid===ck.id&&F.ent==='chest');if(!fs.length)continue;const after=CAMP[ck.after];c.appendChild(SUBH('Forziere '+CHEST[ck.id].n+(ck.big?' (finale)':'')+' · dopo il liv. '+(after?after.n+' '+esc(after.title):ck.after)));for(const F of fs)c.appendChild(field(F,{label:F.kind==='num'?'Stelle demoniache':RL(F)}))}g.appendChild(c)}
+    marks()};inp.oninput=()=>{q=inp.value;draw()};draw()}
+function vMiss(v){const inp=searchBar(v,'Cerca missione o traguardo');
+  v.appendChild(el('<div class="intro"><b>Missioni:</b> premio per ogni unità dell\'obiettivo (per uccisione, per partita…), vedi subito il totale dei 3 livelli. <b>Traguardi:</b> scrivi quello che il giocatore riceve davvero.</div>'));
+  const box=el('<div></div>');v.appendChild(box);
+  const draw=()=>{box.innerHTML='';LIVE=[];const g=el('<div class="grid"></div>');box.appendChild(g);const all=rewardFields();
+    for(const[pool,nm]of [['daily','Missioni giornaliere'],['weekly','Missioni settimanali']]){const ms=RW[pool].filter(m=>match(nm+' '+m.t));if(!ms.length)continue;const c=card(IMG('ui:missions'),nm,'Ogni missione ha 3 livelli di difficoltà. Premio = per unità × obiettivo × 0,35.','miss');
+      for(const m of ms){c.appendChild(SUBH(esc(m.t.replace('%d',m.goal.map(nfi).join(' / ')).replace('%s','eroe'))));for(const F of all.filter(F=>F.mid===m.id))c.appendChild(field(F,{label:F.lab2,help:'Premio per ogni unità dell\'obiettivo. Minimo 10 monete. Esempio: 30 per uccisione con obiettivo 5 = 30 × 5 × 0,35 = 50 monete.'}))}g.appendChild(c)}
+    for(const a of RW.ach){if(!match('traguardo '+a.t))continue;const c=card(IMG('ui:missions'),'Traguardo',esc(a.t.replace('%d','N')),'ach');a.lv.forEach((lv,li)=>{c.appendChild(SUBH('Livello '+(li+1)+': '+esc(a.t.replace('%d',nfi(lv)))));for(const F of all.filter(F=>F.aid===a.id&&F.li===li))c.appendChild(field(F,{label:RL(F)}))});g.appendChild(c)}
+    marks()};inp.oninput=()=>{q=inp.value;draw()};draw()}
+function vShop(v){v.appendChild(el('<div class="intro">Prezzi del negozio e regalo giornaliero. I prezzi delle <b>skin</b> sono nella pagina di ogni eroe, quelli delle <b>rune</b> nella scheda Rune.</div>'));
+  const g=el('<div class="grid"></div>');v.appendChild(g);const all=rewardFields();
+  const c=card(IMG('ui:shop'),'Eroi e regalo giornaliero','','shop');for(const F of all.filter(F=>F.ent==='shop'||F.ent==='gift'))c.appendChild(field(F));g.appendChild(c);
+  const V=k=>get({s:'eco',id:k});
+  const c2=card(IMG('ui:asc'),'Stelle demoniache in diamanti','Scheda STELLE dello shop. Si comprano subito.','stshop');
+  for(let i=0;i<3;i++){c2.appendChild(SUBH('Pacchetto '+(i+1)));for(const F of ascFields(ASCS.filter(x=>x[0].startsWith('stp'+i)),'stshop','shop'))c2.appendChild(field(F,{prev:F.P.id.endsWith('_gems')?(x=>`<b>${nf(x/Math.max(1,V('stp'+i)),2)}</b> diamanti per stella`):null}))}g.appendChild(c2);
+  const c3=card(IMG('ui:asc'),'Stelle demoniache in euro','Solo nella versione Play Store (fuori mostra il prezzo e "solo Play Store").','stshop');
+  for(let i=0;i<3;i++){c3.appendChild(SUBH('Pacchetto € '+(i+1)));for(const F of ascFields(ASCE.filter(x=>x[0].startsWith('stpe'+i)),'stshop','shop'))c3.appendChild(field(F))}g.appendChild(c3)}
 
 // ============================================================ stagioni, versione, storico (come prima)
 function dt(s){const d=new Date(s*1000);const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes())}
-function vSeasons(v){v.appendChild(el('<div class="intro">Fra la fine di una stagione e l\'inizio della successiva le ranked restano chiuse. A fine stagione i giocatori ricevono il premio della fascia raggiunta (coppe migliori) e le coppe sopra la soglia scendono a metà della differenza. Le stagioni si salvano subito, non con PUBBLICA.</div>'));
+function vSeasons(v){v.appendChild(el('<div class="intro"><b>Stagioni</b> (si salvano subito con "Salva stagione", non con PUBBLICA) e <b>Cammino delle coppe</b> (si pubblica con PUBBLICA). Fra la fine di una stagione e l\'inizio della successiva le ranked restano chiuse. A fine stagione i giocatori ricevono il premio della fascia raggiunta (coppe migliori) e le coppe sopra la soglia scendono a metà della differenza. Le stagioni si salvano subito, non con PUBBLICA.</div>'));
   const list=(state.seasons||[]).slice();const nid=list.length?Math.max(...list.map(s=>s.id))+1:1;const last=list[list.length-1];const st0=last?last.end+(last.break_h||36)*3600:Date.now()/1000;
   list.push({id:nid,name:'Stagione '+nid,start:st0,end:st0+60*86400,break_h:36,floor:1000,rewards:last?last.rewards:[],heroes:[],_new:true});
   const g=el('<div class="grid"></div>');v.appendChild(g);
@@ -757,16 +878,74 @@ function vSeasons(v){v.appendChild(el('<div class="intro">Fra la fine di una sta
     <div class="f"><div class="fr"><div class="fl">Fine</div><div class="fi"><input type="datetime-local" class="en"></div></div></div>
     <div class="f"><div class="fr"><div class="fl">Pausa dopo la fine</div><div class="fi"><input type="number" class="br"><span class="u">ore</span></div></div></div>
     <div class="f"><div class="fr"><div class="fl">Soglia reset coppe</div><div class="fi"><input type="number" class="fl0"><span class="u">coppe</span></div></div></div>
-    <div class="sec">Premi di fine stagione</div><table class="tbl"><thead><tr><th>Coppe</th><th>Monete</th><th>Diamanti</th><th></th></tr></thead><tbody></tbody></table>
+    <div class="sec">Premi di fine stagione</div><table class="tbl"><thead><tr><th>Coppe</th><th>Monete</th><th>Diamanti</th><th>Stelle</th><th></th></tr></thead><tbody></tbody></table>
     <div class="mrow" style="justify-content:space-between"><button class="sm add">+ fascia</button><span class="msg"></span><button class="go sv">Salva stagione</button></div></div>`);
     f.querySelector('.nm').value=s.name;f.querySelector('.st').value=dt(s.start);f.querySelector('.en').value=dt(s.end);f.querySelector('.br').value=s.break_h;f.querySelector('.fl0').value=s.floor;
-    const tb=f.querySelector('tbody');const addr=r=>{const tr=el('<tr><td><input type="number" class="a" style="width:80px"></td><td><input type="number" class="b" style="width:80px"></td><td><input type="number" class="c" style="width:70px"></td><td><button class="sm gh">✕</button></td></tr>');tr.querySelector('.a').value=r.tr;tr.querySelector('.b').value=r.coins;tr.querySelector('.c').value=r.gems;tr.querySelector('button').onclick=()=>tr.remove();tb.appendChild(tr)};
-    for(const r of s.rewards||[])addr(r);f.querySelector('.add').onclick=()=>addr({tr:0,coins:0,gems:0});
+    const tb=f.querySelector('tbody');const addr=r=>{const tr=el('<tr><td><input type="number" class="a" style="width:72px"></td><td><input type="number" class="b" style="width:72px"></td><td><input type="number" class="c" style="width:62px"></td><td><input type="number" class="d" style="width:62px"></td><td><button class="sm gh">✕</button></td></tr>');tr.querySelector('.a').value=r.tr;tr.querySelector('.b').value=r.coins;tr.querySelector('.c').value=r.gems;tr.querySelector('.d').value=r.stars||0;tr.querySelector('button').onclick=()=>tr.remove();tb.appendChild(tr)};
+    for(const r of s.rewards||[])addr(r);f.querySelector('.add').onclick=()=>addr({tr:0,coins:0,gems:0,stars:0});
     f.querySelector('.sv').onclick=()=>confirmBox('Salvare la stagione "'+f.querySelector('.nm').value+'"? Vale subito per tutti.',async()=>{const m=f.querySelector('.msg');m.textContent='...';
       const args={id:s.id,name:f.querySelector('.nm').value,start:new Date(f.querySelector('.st').value).getTime()/1000,end:new Date(f.querySelector('.en').value).getTime()/1000,break_h:parseInt(f.querySelector('.br').value)||36,floor:parseInt(f.querySelector('.fl0').value)||1000,
-        rewards:[...tb.querySelectorAll('tr')].map(r=>({tr:parseInt(r.querySelector('.a').value)||0,coins:parseInt(r.querySelector('.b').value)||0,gems:parseInt(r.querySelector('.c').value)||0})).sort((x,y)=>x.tr-y.tr),heroes:s.heroes||[]};
+        rewards:[...tb.querySelectorAll('tr')].map(r=>({tr:parseInt(r.querySelector('.a').value)||0,coins:parseInt(r.querySelector('.b').value)||0,gems:parseInt(r.querySelector('.c').value)||0,stars:parseInt(r.querySelector('.d').value)||0})).sort((x,y)=>x.tr-y.tr),heroes:s.heroes||[]};
       let r;try{r=await admin('season',args)}catch(e){r={}}if(r.ok){m.className='ok';m.textContent='Salvata';state=await admin('state');setTimeout(render,500)}else{m.className='err';m.textContent='Errore'}});
-    c.appendChild(f);g.appendChild(c)}}
+    c.appendChild(f);g.appendChild(c)}
+  const rc=card(IMG('ui:trophy'),'Cammino delle coppe','Premi a soglia di coppe migliori, si prendono una volta sola. Per ogni tappa scegli: monete, diamanti, stelle demoniache, una skin o un eroe. Si pubblica con PUBBLICA.','road');rc.style.marginTop='12px';rc.appendChild(roadEditor());v.appendChild(rc)}
+// ============================================================ giocatori e regali (mbm_admin_users)
+async function adminU(action,args){return rpc('mbm_admin_users',{p_pass:PW,p_action:action,p_args:args||{}})}
+let GIFT_TO=null;
+const ago=t=>{if(!t)return '-';const d=Date.now()/1000-t;if(d<60)return 'ora';if(d<3600)return Math.floor(d/60)+' min fa';if(d<86400)return Math.floor(d/3600)+' h fa';return Math.floor(d/86400)+' g fa'};
+function vPlayers(v){v.appendChild(el('<div class="intro">Tutti i giocatori registrati, dal più recente. Monete, diamanti e stelle si vedono per chi ha salvato i progressi nel cloud (ultimo salvataggio). Con <b>Regalo</b> gli mandi un popup con testo e premi.</div>'));
+  const t=el('<div class="tools"><input type="search" placeholder="Cerca nome o codice"><button class="sm cy">Cerca</button></div>');v.appendChild(t);
+  const info=el('<div style="color:var(--dim);margin:0 0 8px"></div>');v.appendChild(info);
+  const list=el('<div class="grid"></div>');v.appendChild(list);
+  const more=el('<button class="cy" style="width:100%;margin-top:10px">Altri giocatori</button>');v.appendChild(more);
+  let off=0;const qi=t.querySelector('input');
+  const load=async(reset)=>{if(reset){off=0;list.innerHTML=''}info.textContent='Carico…';let r;try{r=await adminU('players',{q:qi.value.trim(),limit:40,offset:off})}catch(e){r={}}
+    if(!r.ok){info.textContent='Errore nel caricamento';return}info.textContent=r.total+' giocatori';off+=r.players.length;more.style.display=off<r.total?'':'none';
+    for(const p of r.players){const asc=p.hasc&&typeof p.hasc==='object'?Object.entries(p.hasc).filter(x=>+x[1]>0):[];
+      const c=el('<div class="card pl"><div class="ch"><div class="av"></div><div style="flex:1;min-width:0"><div class="t"></div><div class="s"></div></div><button class="sm go">Regalo</button></div><div class="pst"></div></div>');
+      c.querySelector('.av').textContent=(p.name||'?').slice(0,2).toUpperCase();
+      c.querySelector('.t').innerHTML=esc(p.name)+(p.online?' <span class="dot on"></span>':'');
+      c.querySelector('.s').textContent='Codice '+p.code+' · '+nfi(p.trophies||0)+' coppe · visto '+ago(p.ls)+' · iscritto '+ago(p.ca);
+      const st=c.querySelector('.pst');
+      st.innerHTML=p.cloud?`<span><img src="${IMG('ui:coin')}">${nfi(p.coins||0)}</span><span><img src="${IMG('ui:gem')}">${nfi(p.gems||0)}</span><span><img src="${IMG('ui:asc')}">${nfi(p.stars||0)}</span><span>${nfi(p.games||0)} partite</span>`+(asc.length?'<span>'+asc.map(([h,n])=>esc((H[h]||{}).name||h)+' '+'★'.repeat(+n)).join(' · ')+'</span>':'')+`<span class="dim">cloud ${ago(p.cloud_at)}</span>`:'<span class="dim">Nessun salvataggio cloud: monete e diamanti non visibili</span>';
+      c.querySelector('button').onclick=()=>{GIFT_TO={id:p.id,name:p.name};tab='gifts';render();window.scrollTo(0,0)};list.appendChild(c)}};
+  t.querySelector('button').onclick=()=>load(true);qi.onkeydown=e=>{if(e.key==='Enter')load(true)};more.onclick=()=>load(false);load(true)}
+function vGifts(v){v.appendChild(el('<div class="intro">Il regalo arriva come popup nel gioco (entro un minuto, nel menu) con il tuo testo e i premi; il giocatore preme RITIRA e lo riceve una volta sola. <b>Serve l\'app 146 o più.</b></div>'));
+  const c=card(IMG('ui:gift'),'Nuovo regalo','','gift');v.appendChild(c);
+  const f=el(`<div>
+    <div class="f"><div class="fr"><div class="fl">A chi</div><div class="fi"><select class="to"><option value="all">Tutti i giocatori</option><option value="one">Un giocatore</option></select></div></div></div>
+    <div class="f one hide"><div class="fr"><div class="fl">Giocatore</div><div class="fi"><input class="pq" placeholder="Nome o codice" style="width:170px;text-align:left"><button class="sm cy ps">Trova</button></div></div><div class="pres" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px"></div><div class="pv psel"></div></div>
+    <div class="f all"><div class="fr"><div class="fl">Anche a chi si iscrive dopo<div class="pv">Spento: solo a chi c'è già adesso (es. grazie per la beta). Acceso: anche ai nuovi (es. regalo di Natale valido 7 giorni).</div></div><div class="fi"><button class="tog nt"></button></div></div></div>
+    <div class="f"><div class="fr"><div class="fl">Titolo</div></div><input class="ti" maxlength="40" placeholder="Es. Buon Natale!" style="width:100%;margin-top:6px"></div>
+    <div class="f"><div class="fr"><div class="fl">Messaggio</div></div><textarea class="bo" rows="3" maxlength="300" placeholder="Es. Grazie per aver giocato la beta, ecco un regalo da Cheip e Andry." style="width:100%;margin-top:6px"></textarea></div>
+    <div class="f"><div class="fr"><div class="fl">Monete</div><div class="fi"><input type="number" class="co" value="0"><span class="u">monete</span></div></div></div>
+    <div class="f"><div class="fr"><div class="fl">Diamanti</div><div class="fi"><input type="number" class="ge" value="0"><span class="u">diamanti</span></div></div></div>
+    <div class="f"><div class="fr"><div class="fl">Stelle demoniache</div><div class="fi"><input type="number" class="sa" value="0"><span class="u">stelle</span></div></div></div>
+    <div class="f"><div class="fr"><div class="fl">Scade dopo<div class="pv">0 = non scade mai</div></div><div class="fi"><input type="number" class="da" value="0"><span class="u">giorni</span></div></div></div>
+    <div class="sec">Anteprima nel gioco</div><div class="gp"></div>
+    <div class="mrow"><span class="msg"></span><button class="go send">Manda regalo</button></div></div>`);
+  c.appendChild(f);const $f=x=>f.querySelector(x);let who=GIFT_TO;GIFT_TO=null;let newToo=false;
+  const sync=()=>{const one=$f('.to').value==='one';f.querySelector('.one').classList.toggle('hide',!one);f.querySelector('.all').classList.toggle('hide',one);$f('.psel').innerHTML=who?'Scelto: <b>'+esc(who.name)+'</b>':'Nessun giocatore scelto';$f('.nt').classList.toggle('on',newToo);prev()};
+  const prev=()=>{const gp=$f('.gp');gp.innerHTML='';const d=el('<div class="gpop" style="text-align:center"><img src="img/ui/gift.svg" style="width:70px"><div class="gt tt"></div><div class="gs"></div><div class="rw" style="display:flex;justify-content:center;gap:22px;margin:8px 0"></div><div class="gby tt" style="text-align:center;font-size:16px"></div></div>');
+    d.querySelector('.gt').textContent=$f('.ti').value||'UN REGALO PER TE!';d.querySelector('.gs').textContent=$f('.bo').value;const rw=d.querySelector('.rw');
+    for(const[img,n]of [['ui:coin',+$f('.co').value],['ui:gem',+$f('.ge').value],['ui:asc',+$f('.sa').value]])if(n>0)rw.appendChild(el('<div style="display:flex;align-items:center;gap:6px;font-family:Luckiest Guy;font-size:26px"><img src="'+IMG(img)+'" style="width:42px">+'+nfi(n)+'</div>'));
+    d.querySelector('.gby').textContent='da '+WHO;gp.appendChild(d)};
+  if(who)$f('.to').value='one';
+  $f('.to').onchange=sync;$f('.nt').onclick=()=>{newToo=!newToo;sync()};for(const k of ['.ti','.bo','.co','.ge','.sa'])$f(k).oninput=prev;
+  $f('.ps').onclick=async()=>{const r=await adminU('players',{q:$f('.pq').value.trim(),limit:12});const box=$f('.pres');box.innerHTML='';for(const p of (r.players||[])){const b=el('<button class="sm"></button>');b.textContent=p.name+' ('+p.code+')';b.onclick=()=>{who={id:p.id,name:p.name};sync()};box.appendChild(b)}if(!(r.players||[]).length)box.textContent='Nessuno trovato'};
+  $f('.send').onclick=()=>{const one=$f('.to').value==='one';if(one&&!who){toast('Scegli il giocatore');return}
+    const args={player_id:one?who.id:'',title:$f('.ti').value.trim(),body:$f('.bo').value.trim(),coins:Math.max(0,parseInt($f('.co').value)||0),gems:Math.max(0,parseInt($f('.ge').value)||0),stars:Math.max(0,parseInt($f('.sa').value)||0),days:Math.max(0,parseInt($f('.da').value)||0),new_too:!one&&newToo,author:WHO};
+    if(!args.title&&!args.body&&!args.coins&&!args.gems&&!args.stars){toast('Scrivi un testo o metti un premio');return}
+    confirmBox((one?'Mandare il regalo a '+who.name:'Mandare il regalo a TUTTI i giocatori'+(newToo?' (anche ai nuovi)':''))+'? '+[args.coins?nfi(args.coins)+' monete':'',args.gems?nfi(args.gems)+' diamanti':'',args.stars?nfi(args.stars)+' stelle':''].filter(Boolean).join(', '),async()=>{const m=$f('.msg');m.textContent='...';let r;try{r=await adminU('gift',args)}catch(e){r={}}
+      if(r.ok){m.className='ok';m.textContent='Mandato';toast('Regalo mandato');setTimeout(()=>render(),600)}else{m.className='err';m.textContent='Errore'}},'Manda')};
+  sync();
+  const h=card(IMG('ui:gift'),'Regali mandati','Ultimi 50, con quanti li hanno già ritirati.','');h.style.marginTop='12px';v.appendChild(h);const hl=el('<div>Carico…</div>');h.appendChild(hl);
+  adminU('gifts',{}).then(r=>{hl.innerHTML='';if(!r.ok){hl.textContent='Errore';return}if(!r.gifts.length){hl.textContent='Nessun regalo mandato.';return}
+    for(const g of r.gifts){const it=el('<div class="ci"><img alt=""><div class="x"><b></b><div></div><small></small></div><button class="sm rd">Elimina</button></div>');it.querySelector('img').src=IMG('ui:gift');
+      it.querySelector('b').textContent=(g.title||'(senza titolo)')+' → '+(g.player_id?g.player:'tutti'+(g.new_too?' (anche nuovi)':''));
+      it.querySelector('.x div').textContent=[g.coins?nfi(g.coins)+' monete':'',g.gems?nfi(g.gems)+' diamanti':'',g.stars?nfi(g.stars)+' stelle':''].filter(Boolean).join(' · ')||'solo messaggio';
+      it.querySelector('small').textContent=new Date(g.at*1000).toLocaleString('it-IT')+' · da '+(g.author||'?')+' · ritirato da '+g.claimed+(g.exp?' · scade '+new Date(g.exp*1000).toLocaleDateString('it-IT'):'');
+      it.querySelector('button').onclick=()=>confirmBox('Eliminare il regalo? Chi non l\'ha ancora ritirato non lo vedrà più.',async()=>{await adminU('gift_del',{id:g.id});render()},'Elimina');hl.appendChild(it)}})}
 function vVersion(v){const ver=state.version||{};const c=card(IMG('ui:logo'),'Versione dell\'app','Si salva subito, non con PUBBLICA.');
   const f=el(`<div><div class="f"><div class="fr"><div class="fl">Versione minima<div class="pv">Chi ha un version code più basso deve aggiornare per giocare online</div></div><div class="fi"><input type="number" class="mi"></div></div></div>
   <div class="f"><div class="fr"><div class="fl">Ultima versione pubblicata<div class="pv">Chi ha meno vede il popup "aggiornamento disponibile"</div></div><div class="fi"><input type="number" class="la"></div></div></div>
